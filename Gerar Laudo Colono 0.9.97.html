@@ -1,0 +1,1239 @@
+<html lang"pt"=""><head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Gerar Laudo Colono 0.9.97</title>
+    <script>
+        var filename = decodeURIComponent(window.location.pathname.split('/').pop().split('.html')[0]);
+        filename = filename.replace(/%20/g, ' ');
+        document.title = filename;
+    </script>
+	<link rel="stylesheet" href="https://code.jquery.com/ui/1.13.0/themes/smoothness/jquery-ui.css">
+	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+	<script src="https://code.jquery.com/ui/1.13.0/jquery-ui.min.js"></script>
+	</head>
+
+<body><h3>COLONOSCOPIA<br><br></h3>
+<style>
+body {
+	background-color: #daecd9;
+    font-family: Arial;
+    font-size: 14px;
+  }
+ input[type=checkbox] {
+  width: 15px;
+  height: 15px;
+}
+#sortable-indicacao,
+#sortable-equipamento,
+#sortable-sedacao,
+#sortable-preparo,
+#sortable-exame,
+#sortable-alteracao,
+#sortable-diverticulo,
+#sortable-canalanal,
+#sortable-conclusao,
+#sortable-obs,
+#sortable-outros {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+}
+
+#sortable-indicacao .item,
+#sortable-equipamento .item,
+#sortable-sedacao .item,
+#sortable-preparo .item,
+#sortable-exame .item,
+#sortable-alteracao .item,
+#sortable-diverticulo .item,
+#sortable-canalanal .item,
+#sortable-conclusao .item,
+#sortable-obs .item,
+#sortable-outros .item {
+    display: inline-block;
+    margin-right: 3px;
+    margin-bottom: 5px;
+    border: 1px solid #ccc;
+    padding: 5px;
+	}
+#popup {
+  width: 1000px;
+  height: 500px;
+  overflow: auto;
+}
+#checkbox-list {
+  height: 350px;
+  overflow: auto;
+}
+.checkbox-item {
+  flex: 0 0 auto;
+}
+ .bold {
+    font-weight: bold;
+}
+.flex-container {
+  display: flex;
+  align-items: center;
+}
+.my-textarea {
+  font-family: Arial;
+  font-size: 16px;
+  width: 75%;
+  height: 300px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  padding: 10px;
+  background: white;
+  overflow: auto;
+}
+	.popup {
+	position: fixed;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	width: 1000px;
+	height: 500px;
+	background-color: #D3D3D3;
+	border: 1px solid #000;
+	padding: 20px;
+	display: none;
+	z-index: 9999;
+	}
+
+  h2 {
+    font-size: 14px; /* set the font size of the h2 element */
+    font-weight: bold; /* set the font weight of the h2 element */
+	font-family: Arial; /* set the font family of the h2 element */
+		  display: inline;
+  }
+  h3 {
+      font-size: 18px;
+	  font-weight: Bold;
+	  font-family: Arial;
+	  display: inline;
+    }
+h4 {
+font-size: 14px;
+font-weight: bold;
+}
+	#sedacao-sortable {
+        display: none;
+    }
+    #polipos {
+        display: none;
+    }
+	#alteracao-conc-sortable-conclusao {
+        display: none;
+    }
+    #alteracoes-conc-sortable-conclusao {
+        display: none;
+    }
+	#diver-sortable {
+        display: none;
+    }
+	#canal-sortable {
+        display: none;
+    }
+</style>
+
+ <label for="fileName">Nome do arquivo:</label>
+    <input type="text" id="fileName" value="">
+    <script>
+        document.getElementById('fileName').value = document.title;
+    </script>
+	<button onclick="saveCode()">Salvar</button><br><br>
+	<script> // salvar programa
+  function saveCode() {
+    var fileName = document.getElementById("fileName").value;
+    // Clear the contents of the output element
+    var output = document.getElementById("output");
+    output.innerHTML = "";
+
+    var code = document.documentElement.outerHTML;
+    var blob = new Blob([code], {type: "text/html"});
+    var link = document.createElement("a");
+    link.download = fileName + ".html";
+    link.href = URL.createObjectURL(blob);
+    link.click();
+  }
+	</script>
+	
+	<button style="font-size: 14px; font-weight: Bold; padding: 10px;" onclick="uncheckAll()">Limpar Seleção</button>
+
+<button style="font-size: 14px; font-weight: Bold; padding: 10px;" onclick="showPopup()">Editar Item</button>
+
+<div class="popup" id="popup" style="display: none;">
+<h3>Editar Item</h3>
+    <div id="checkbox-list"><div><strong><br>Nome do Item:<br><br></strong> <textarea style="height: 25px; width: 200px" class="checkbox-label" onchange="updateCheckboxLabel(this, &quot;Marília-sortable-obs&quot;)">Marília</textarea></div><div><strong><br>Texto da entrada:<br><br></strong> <textarea style="height: 75px; width: 900px" class="checkbox-value" onchange="updateCheckboxValue(this, &quot;Marília-sortable-obs&quot;)">Obs: realizado por Dra. Marília Seber e acompanhado por Dr. Eduardo Ogawa.</textarea></div><div><strong><br>Nome do Item:<br><br></strong> <textarea style="height: 25px; width: 200px" class="checkbox-label" onchange="updateCheckboxLabel(this, &quot;Letícia-sortable-obs&quot;)">Letícia</textarea></div><div><strong><br>Texto da entrada:<br><br></strong> <textarea style="height: 75px; width: 900px" class="checkbox-value" onchange="updateCheckboxValue(this, &quot;Letícia-sortable-obs&quot;)">Obs: realizado por Dra. Letícia e acompanhado por Dr. Eduardo Ogawa.</textarea></div><div><strong><br>Nome do Item:<br><br></strong> <textarea style="height: 25px; width: 200px" class="checkbox-label" onchange="updateCheckboxLabel(this, &quot;Gabriela-sortable-obs&quot;)">Gabriela</textarea></div><div><strong><br>Texto da entrada:<br><br></strong> <textarea style="height: 75px; width: 900px" class="checkbox-value" onchange="updateCheckboxValue(this, &quot;Gabriela-sortable-obs&quot;)">Obs: realizado por Dra. Gabriela e acompanhado por Dr. Eduardo Ogawa.</textarea></div><div><strong><br>Nome do Item:<br><br></strong> <textarea style="height: 25px; width: 200px" class="checkbox-label" onchange="updateCheckboxLabel(this, &quot;Valéria-sortable-obs&quot;)">Valéria</textarea></div><div><strong><br>Texto da entrada:<br><br></strong> <textarea style="height: 75px; width: 900px" class="checkbox-value" onchange="updateCheckboxValue(this, &quot;Valéria-sortable-obs&quot;)">Obs: realizado por Dra. Gabriela e acompanhado por Dr. Eduardo Ogawa.</textarea></div></div>
+    <br><br>
+	<button style="font-size: 16px; font-weight: Bold; padding: 12px;" onclick="hidePopup()">Fechar</button>
+	<button style="font-size: 16px; font-weight: Bold; padding: 12px;" onclick="deleteCheckedCheckboxes()">Excluir Item</button>
+</div> 
+<button style="font-size: 14px; font-weight: Bold; padding: 10px;" onclick="deleteCheckedCheckboxes()">Excluir Item</button>
+<script> // deletar checkbox
+function deleteCheckedCheckboxes() {
+  // Get all checkboxes on the page
+  var checkboxes = document.querySelectorAll('input[type="checkbox"]');
+  
+  // Iterate over the checkboxes
+  checkboxes.forEach(function(checkbox) {
+    // Check if the checkbox is checked
+    if (checkbox.checked) {
+      // Get the parent item div and remove it
+      var itemDiv = checkbox.parentNode;
+      itemDiv.parentNode.removeChild(itemDiv);
+    }
+  });
+}
+</script>
+
+<script> //editar checkbox
+    let originalValues = {};
+
+    function showPopup() {
+        let checkboxes = document.querySelectorAll('input[type="checkbox"]:checked');
+        let checkboxList = "";
+        for (let i = 0; i < checkboxes.length; i++) {
+            let checkboxValue = checkboxes[i].value;
+            let checkboxLabel = document.querySelector('label[for="' + checkboxes[i].id + '"]').innerHTML;
+            checkboxList += "<div><strong><br>Nome do Item:<br><br></strong> <textarea style='height: 25px; width: 200px' class='checkbox-label' onchange='updateCheckboxLabel(this, \"" + checkboxes[i].id + "\")'>" + checkboxLabel + "</textarea></div>";
+            checkboxList += "<div><strong><br>Texto da entrada:<br><br></strong> <textarea style='height: 75px; width: 900px' class='checkbox-value' onchange='updateCheckboxValue(this, \"" + checkboxes[i].id + "\")'>" + checkboxValue + "</textarea></div>";
+            originalValues[checkboxes[i].id] = {
+                label: checkboxLabel,
+                value: checkboxValue
+            };
+        }
+        if (checkboxList === "") {
+            checkboxList = "<div>No checkboxes selected</div>";
+        }
+        document.getElementById("checkbox-list").innerHTML = checkboxList;
+        document.getElementById("popup").style.display = "block";
+    }
+
+    function hidePopup() {
+        document.getElementById("popup").style.display = "none";
+    }
+
+    function updateCheckboxLabel(input, checkboxId) {
+        let checkboxLabel = document.querySelector('label[for="' + checkboxId + '"]');
+        originalValues[checkboxId] = checkboxLabel.innerHTML;
+        checkboxLabel.innerHTML = input.value;
+    }
+
+    function updateCheckboxValue(textarea, checkboxId) {
+        let checkbox = document.getElementById(checkboxId);
+        originalValues[checkboxId] = checkbox.value;
+        checkbox.value = textarea.value;
+    }
+
+    function saveChanges() {
+        let checkboxes = document.querySelectorAll('input[type="checkbox"]:checked');
+        for (let i = 0; i < checkboxes.length; i++) {
+            let checkboxId = checkboxes[i].id;
+            let checkboxValue = checkboxes[i].value;
+            let updatedValue = checkboxValue;
+            if (checkboxValue !== originalValues[checkboxId].value) {
+                updatedValue = originalValues[checkboxId].value + " (updated to: " + checkboxValue + ")";
+            }
+            let checkboxLabel = document.querySelector('label[for="' + checkboxId + '"]');
+            let updatedLabel = checkboxLabel.querySelector('.checkbox-label').value;
+            checkboxLabel.innerHTML = updatedLabel;
+            console.log(checkboxId + ": " + updatedValue);
+        }
+        document.getElementById("popup").style.display = "none";
+    }
+</script>
+
+<button style="font-size: 14px; font-weight: bold; padding: 10px;" onclick="showCreatePopup()">Criar Item</button>
+
+<div class="popup" id="create-popup" style="display: none;">
+  <h3>Criar novo item</h3>
+  <label for="section-select"><span class="bold" style="font-size: 16px;"><br><br><br>Selecionar a seção:</span></label>
+    <select id="section-select">
+	<option value="sortable-indicacao">Indicação</option>
+	<option value="sortable-equipamento">Equipamento</option>
+    <option value="sortable-sedacao">Sedação</option>
+    <option value="sortable-preparo">Preparo</option>
+    <option value="sortable-exame">Exame</option>
+	<option value="sortable-alteracao">Alteração</option>
+	<option value="sortable-diverticulo">Divertículos</option>
+	<option value="sortable-canalanal">Divertículos</option>
+    <option value="sortable-conclusao">Conclusão</option>
+	<option value="sortable-obs">Observação</option>
+	<option value="sortable-outros">Outros</option>
+  </select>
+  <label for="checkbox-name"><br><br><strong>Nome do item:</strong></label><br><br>
+  <textarea id="checkbox-name"></textarea>
+  <label for="checkbox-value"><br><br><strong>Texto:</strong></label><br><br>
+  <textarea style="height: 150px; width: 800px" id="checkbox-value"></textarea><br><br><br>
+  <button style="font-size: 14px; font-weight: bold; padding: 10px;" onclick="createCheckbox()">Criar</button>
+  <button style="font-size: 14px; font-weight: bold; padding: 10px;" onclick="hideCreatePopup()">Cancelar</button>
+</div>
+
+<script> //criar item
+function showCreatePopup() {
+  var createPopup = document.getElementById("create-popup");
+  createPopup.style.display = "block";
+}
+
+function hideCreatePopup() {
+  document.getElementById("create-popup").style.display = "none";
+}
+
+function createCheckbox() {
+  var checkboxName = document.getElementById("checkbox-name").value;
+  var checkboxValue = document.getElementById("checkbox-value").value;
+  var sectionSelect = document.getElementById("section-select");
+  var sectionId = sectionSelect.value;
+  var section = document.getElementById(sectionId);
+
+  // Replace line breaks with <br> tags
+  checkboxValue = checkboxValue.replace(/\n/g, "<br>");
+
+  var div = document.createElement("div");
+  div.className = "item";
+
+  var checkbox = document.createElement("input");
+  checkbox.type = "checkbox";
+  checkbox.name = checkboxName;
+  checkbox.value = checkboxValue;
+  checkbox.id = checkboxName + "-" + sectionId;
+
+  var label = document.createElement("label");
+  label.htmlFor = checkbox.id;
+  label.setAttribute("contenteditable", "true");
+  label.innerHTML = checkboxName;
+
+  div.appendChild(checkbox);
+  div.appendChild(label);
+
+  // Create a text node for line break
+  var lineBreak = document.createTextNode("\n");
+
+  section.appendChild(lineBreak); // Insert line break
+  section.appendChild(div); // Append the new item to the correct sortable container
+
+  document.getElementById("create-popup").style.display = "none";
+}
+
+</script>
+
+<main>
+<br><hr>
+    <section id="indicacao" class="flex-container">
+	<span class="bold" style="font-size: 20px;">Indicação:&nbsp; </span>	
+	<div id="sortable-indicacao" class="ui-sortable">
+	
+<div class="item ui-sortable-handle" style=""><input type="checkbox" name="Rastreamento" value="rastreamento para câncer colorretal." id="Rastreamento-sortable-indicacao"><label for="Rastreamento-sortable-indicacao" contenteditable="true">Rastreamento</label></div>
+<div class="item ui-sortable-handle" style=""><input type="checkbox" name="Seguimento" value="seguimento pós-polipectomia." id="Seguimento-sortable-indicacao"><label for="Seguimento-sortable-indicacao" contenteditable="true">Seguimento polipect</label></div>
+<div class="item ui-sortable-handle" style=""><input type="checkbox" name="Seguimento ressec" value="seguimento pós-ressecção de lesão." id="Seguimento ressec-sortable-indicacao"><label for="Seguimento ressec-sortable-indicacao" contenteditable="true">Seguimento ressec</label></div>
+<div class="item ui-sortable-handle" style=""><input type="checkbox" name="Ressecção de lesão" value="ressecção de lesão." id="Ressecção de lesão-sortable-indicacao"><label for="Ressecção de lesão-sortable-indicacao" contenteditable="true">Ressecção de lesão</label></div>
+<div class="item ui-sortable-handle" style=""><input type="checkbox" name="Dor abd" value="dor abdominal" id="Dor abd-sortable-indicacao"><label for="Dor abd-sortable-indicacao" contenteditable="true">Dor abd</label></div>
+<div class="item ui-sortable-handle" style=""><input type="checkbox" name="Constipação" value="constipação." id="Constipação-sortable-indicacao"><label for="Constipação-sortable-indicacao" contenteditable="true">Constipação</label></div>
+<div class="item ui-sortable-handle" style=""><input type="checkbox" name="Alt de hab int" value="alteração de hábito intestinal." id="Alt de hab int-sortable-indicacao"><label for="Alt de hab int-sortable-indicacao" contenteditable="true">Alt de hab int</label></div>
+<div class="item ui-sortable-handle" style=""><input type="checkbox" name="Diarreia" value="investigação de quadro diarreico." id="Diarreia-sortable-indicacao"><label for="Diarreia-sortable-indicacao" contenteditable="true">Diarreia</label></div>
+<div class="item ui-sortable-handle" style=""><input type="checkbox" name="Sagramento" value="investigação de sangramento esporádico à evacuação." id="Sagramento-sortable-indicacao"><label for="Sagramento-sortable-indicacao" contenteditable="true">Sagramento</label></div>
+<div class="item ui-sortable-handle" style=""><input type="checkbox" name="HDB" value="suspeita de hemorragia digestiva baixa." id="HDB-sortable-indicacao"><label for="HDB-sortable-indicacao" contenteditable="true">HDB</label></div>
+<div class="item ui-sortable-handle" style=""><input type="checkbox" name="Preventivo" value="preventivo." id="Preventivo-sortable-indicacao"><label for="Preventivo-sortable-indicacao" contenteditable="true">Preventivo</label></div>
+</div>
+	</section>
+<br><hr>
+    <section id="Equipamento" class="flex-container">
+	<span class="bold" style="font-size: 20px;">Equipamento:&nbsp; </span>	
+	
+	<div id="sortable-equipamento" class="ui-sortable">
+	<div class="item ui-sortable-handle"><input type="checkbox" id="EC-760Z" name="EC-760Z" value="exame realizado com colonoscópio Fujifilm EC-760Z, que possui magnificação de imagem e cromoscopia digital.<br>Insuflação com CO2.">
+	<label for="EC-760Z" contenteditable="true">EC-760Z</label></div>
+	<div class="item ui-sortable-handle" style=""><input type="checkbox" name="EC-760ZP" value="exame realizado com colonoscópio Fujifilm EC-760ZP, que possui magnificação de imagem e cromoscopia digital.<br>Insuflação com CO2." id="EC-760ZP-sortable-equipamento"><label for="EC-760ZP-sortable-equipamento" contenteditable="true">EC-760ZP</label></div>
+	<div class="item ui-sortable-handle" style=""><input type="checkbox" name="EC-760ZP sem mag
+" value="exame realizado com colonoscópio Fujifilm EC-760ZP, que possui cromoscopia digital, porém sem magnificação de imagem disponível no momento.<br>Insuflação com CO2." id="EC-760ZP sem mag
+-sortable-equipamento"><label for="EC-760ZP sem mag
+-sortable-equipamento" contenteditable="true">EC-760ZP sem mag
+</label></div><div class="item ui-sortable-handle" style=""><input type="checkbox" name="760-R" value="exame realizado com colonoscópio Fujifilm EC760R, que possui cromoscopia digital e imagem HD.<br>Insuflação com CO2." id="760-R-sortable-equipamento"><label for="760-R-sortable-equipamento" contenteditable="true">EC-760R</label></div><div class="item ui-sortable-handle" style=""><input type="checkbox" name="EG-590Z" value="exame realizado com colonoscópio Fujifilm EC-590Z, que possui magnificação de imagem e cromoscopia digital.<br>Insuflação com CO2." id="EG-590Z-sortable-equipamento"><label for="EG-590Z-sortable-equipamento" contenteditable="true">EC-590Z</label></div>
+
+<div class="item ui-sortable-handle" style=""><input type="checkbox" name="EC-600WL" value="exame realizado com colonoscópio Fujifilm EC-600WL, que possui cromoscopia digital e imagem HD.<br>Insuflação com CO2." id="EC-600WL-sortable-equipamento"><label for="EC-600WL-sortable-equipamento" contenteditable="true">EC-600WL</label></div><div class="item ui-sortable-handle"><input type="checkbox" name="170" value="exame realizado com colonoscópio Olympus CF-170L, que possui cromoscopia digital e imagem HD.<br>Insuflação com CO2." id="170-sortable-equipamento"><label for="170-sortable-equipamento" contenteditable="true">CF-170L</label></div>
+
+
+<div class="item ui-sortable-handle"><input type="checkbox" name="CF-H180AL" value="exame realizado com colonoscópio Olympus CF-H180AL, que possui cromoscopia digital e imagem HD.<br>Insuflação com CO2." id="CF-H180AL-sortable-equipamento"><label for="CF-H180AL-sortable-equipamento" contenteditable="true">CF-H180AL</label></div>
+
+
+<div class="item"><input type="checkbox" name="CF-H190" value="exame realizado com colonoscópio Olympus CF-H190, que possui cromoscopia digital e imagem HD.<br>Insuflação com CO2." id="CF-H190-sortable-equipamento"><label for="CF-H190-sortable-equipamento" contenteditable="true">CF-H190</label></div></div></section>
+
+<hr>
+<section id="Sedação" class="flex-container">
+    <span class="bold" style="font-size: 20px;">Sedação:&nbsp;</span>	
+    <div id="sortable-sedacao" class="ui-sortable">
+        <div class="item ui-sortable-handle">
+            <input type="checkbox" id="canal-sortable" name="sedacao" data-label="sedacao" value="">
+            <span>&nbsp;Fentanil&nbsp;</span>
+            <select id="fentanil">
+                <option value="50mcg">50mcg</option>
+                <option value="75mcg">75mcg</option>
+                <option value="100mcg">100mcg</option>
+                <option value="">-</option>
+            </select>
+            <span>&nbsp;+ Midazolam&nbsp;</span>
+            <select id="midazolam">
+                <option value="1mg">1mg</option>
+                <option value="2mg">2mg</option>
+				<option value="2,5mg">2,5mg</option>
+                <option value="3mg">3mg</option>
+                <option value="4mg">4mg</option>
+                <option value="5mg">5mg</option>
+				<option value="">-</option>
+            </select>
+            <span>&nbsp;+ Propofol titulado&nbsp;</span>
+            <button style="font-size: 14px; font-weight: bold; padding: 10px;" onclick="addParametersedacao()">Adicionar checkbox</button>
+        </div>
+        <div class="item ui-sortable-handle" style="">
+            <input type="checkbox" id="anestesista" name="anestesista" value="equipe de anestesiologia.">
+            <label for="anestesista">Anestesista</label>
+        </div>
+        <div class="item ui-sortable-handle">
+            <input type="checkbox" name="UTI" value="equipe intensivista." id="UTI">
+            <label for="UTI" contenteditable="true">UTI</label>
+        </div>
+    </div>
+</section>
+
+<hr>
+	<section id="Preparo" class="flex-container">
+	<span class="bold" style="font-size: 20px;">Preparo:&nbsp;</span>
+
+	<div id="sortable-preparo" class="ui-sortable">
+<div class="item ui-sortable-handle"><input type="checkbox" name="Boston 3+3+3" value="Preparo adequado para o exame (Boston 9)." id="Boston 3+3+3-sortable-preparo"><label for="Boston 3+3+3-sortable-preparo" contenteditable="true">Boston 3+3+3</label></div>
+<div class="item ui-sortable-handle"><input type="checkbox" name="Boston 2+3+3" value="Preparo adequado após lavagem com água em cólon direito (Boston 2+3+3)." id="Boston 2+3+3-sortable-preparo"><label for="Boston 2+3+3-sortable-preparo" contenteditable="true">Boston 2+3+3</label></div>
+<div class="item ui-sortable-handle"><input type="checkbox" name="Boston 2+2+3" value="Preparo adequado após lavagem com água de cólons ascendente e transverso (Boston 2+2+3)." id="Boston 2+2+3-sortable-preparo"><label for="Boston 2+2+3-sortable-preparo" contenteditable="true">Boston 2+2+3</label></div>
+<div class="item ui-sortable-handle" style=""><input type="checkbox" name="Boston 2+2+2" value="Preparo adequado após lavagem de todos os segmentos com água (Boston 2+2+2)." id="Boston 2+2+2-sortable-preparo"><label for="Boston 2+2+2-sortable-preparo" contenteditable="true">Boston 2+2+2</label></div><div class="item ui-sortable-handle"><input type="checkbox" name="Preparo regular" value="Presença de resíduos parcialmente laváveis em cólon direito, que reduzem a qualidade do exame e a taxa de detecção de adenomas (Boston 1+2+2)." id="Preparo regular-sortable-preparo"><label for="Preparo regular-sortable-preparo" contenteditable="true">Preparo regular</label></div>
+</div>
+	</section>
+	
+<hr>
+	<section id="Exame" class="flex-container">
+	<span class="bold" style="font-size: 20px;">Exame:&nbsp;</span>
+	
+	<div id="sortable-exame" class="ui-sortable">
+	<div class="item ui-sortable-handle"><input type="checkbox" id="checkbox11" name="Normal" data-label="Normal" value="Toque retal sem alterações.<br>Introdução do colonoscópio pelo canal anal até o íleo terminal, que não apresenta alterações em seus 5 cm distais.<br>Preparo adequado para o exame (Boston 9).<br>Ceco, válvula ileocecal e óstio apendicular sem alterações.<br>Cólons ascendente, transverso, descendente e sigmoide com trama vascular e mucosa de aspecto normal.<br>Reto sem alterações.">
+	<label for="checkbox11" contenteditable="true">Normal</label></div>
+
+	<div class="item ui-sortable-handle" style=""><input type="checkbox" name="Alt 1 segmento" value="Toque retal sem alterações.<br>Introdução do colonoscópio pelo canal anal até o íleo terminal, que não apresenta alterações em seus 5 cm distais.<br>Preparo adequado para o exame (Boston 9).<br>Ceco, válvula ileocecal e óstio apendicular sem alterações.<br>" id="Alt 1 segmento-sortable-exame"><label for="Alt 1 segmento-sortable-exame" contenteditable="true">Alteração em segmento único</label></div>
+	<div class="item ui-sortable-handle" style=""><input type="checkbox" name="Múltiplos achados" value="Toque retal sem alterações.<br>Introdução do colonoscópio pelo canal anal até o íleo terminal, que não apresenta alterações em seus 5 cm distais. <br>Preparo adequado para o exame (Boston 9).<br>Ceco, válvula ileocecal e óstio apendicular sem alterações.<br><br>A mucosa colorretal apresenta aspecto geral preservado, exceto pelos seguintes achados:" id="Multiplos-achados-sortable-exame"><label for="Multiplos-achados-sortable-exame" contenteditable="true">Múltiplos achados</label></div>
+	<div class="item ui-sortable-handle"><input type="checkbox" name="Retossigmoidoscopia" value="Toque retal sem alterações.<br>Introdução do colonoscópio pelo canal anal até o cólon descendente.<br>Preparo adequado para o exame.<br>Cólon sigmoide e reto apresentam mucosa com aspecto preservado e sem deformidades." id="Retossigmoidoscopia-sortable-exame"><label for="Retossigmoidoscopia-sortable-exame" contenteditable="true">Retossigmoidoscopia</label></div>
+<div class="item ui-sortable-handle"><input type="checkbox" name="Colect esq reconst" value="Toque retal sem alterações.<br>Introdução do colonoscópio pelo canal anal até o íleo terminal, que não apresenta alterações em seus 5 cm distais. <br>Preparo adequado para o exame.<br>Ceco, válvula ileocecal e óstio apendicular sem alterações.<br>Cólons ascendente e transverso remanescente com mucosa e trama vascular de aspecto preservado.<br>Ausência de cólons descendente e sigmoide com anastomose colorretal ampla e sem lesões.<br>Reto remanescente sem alterações.<br>" id="Colect esq reconst-sortable-exame"><label for="Colect esq reconst-sortable-exame" contenteditable="true">Colect esq reconst</label></div>
+<div class="item ui-sortable-handle"><input type="checkbox" name="Colect dir reconst" value="Toque retal sem alterações.<br>Introdução do colonoscópio pelo canal anal até o íleo terminal.<br>Preparo adequado para o exame.<br>Ausência de cólon ascendente, ceco e válvula ileocecal por ressecção cirúrgica prévia.<br>Íleo-transverso anastomose ampla e sem lesões associadas.<br>Cólons transverso remanescente, descendente e sigmoide com mucosa e trama vascular de aspecto preservado.<br>Reto sem alterações.<br><br>" id="Colect dir reconst-sortable-exame"><label for="Colect dir reconst-sortable-exame" contenteditable="true">Colect dir reconst</label></div>
+<div class="item ui-sortable-handle"><input type="checkbox" name="Retossigmoidect c/ reconst" value="Toque retal sem alterações.<br>Introdução do colonoscópio pelo canal anal até o íleo terminal, que não apresenta alterações em seus 5 cm distais. <br>Preparo adequado para o exame.<br>Ceco, válvula ileocecal e óstio apendicular sem alterações.<br>Cólons ascendente, transverso e descendente com trama vascular e mucosa de aspecto normal.<br>Ausência de cólon sigmoide.<br>A cerca de 10cm da borda anal, encontra-se anastomose colorretal ampla e sem lesões associadas.<br>Reto remanescente sem alterações.<br>" id="Retossigmoidect c/ reconst-sortable-exame"><label for="Retossigmoidect c/ reconst-sortable-exame" contenteditable="true">Retossigmoidect c/ reconst</label></div>
+<div class="item ui-sortable-handle"><input type="checkbox" name="Retossigmoidect Hartmann + retite de desuso" value="Toque retal sem alterações.<br>Introdução do colonoscópio pelo canal anal, observando-se reto com mucosa friável e sem lesões. Fundo cego a cerca de 8cm do canal a anal.<br>Preparo adequado para o exame.<br><br>Introdução do colonoscópio por colostomia terminal, localizada em flanco esquerdo, até o íleo terminal, que não apresenta alterações em seus 5 cm distais.<br>Ceco, válvula ileocecal e óstio apendicular sem alterações.<br>A mucosa do cólon remanescente apresenta aspecto preservado.<br>" id="Retossigmoidect Hartmann + retite de desuso-sortable-exame"><label for="Retossigmoidect Hartmann + retite de desuso-sortable-exame" contenteditable="true">Retossigmoidect Hartmann + retite de desuso</label></div>
+</div>
+	</section>
+<hr>
+			
+	<section id="alteracao" class="flex-container">
+		<span class="bold" style="font-size: 20px;">Lesões:&nbsp;</span>
+    <div class="item ui-sortable-handle ui-sortable" id="sortable-alteracao">
+	<div class="item ui-sortable-handle"><input type="checkbox" id="polipos" name="polipos" data-label="polipos" value="">
+  
+            <select id="segmento" style="display: none;">
+                <option value="1">1</option>
+                <option value="2">&gt;1</option>
+</select>
+            <span>&nbsp;Local:&nbsp;</span>
+            <select id="localizacao">
+                <option value="ceco">ceco</option>
+                <option value="cólon ascendente">ascendente</option>
+				<option value="ângulo hepático">ang hepático</option>
+                <option value="cólon transverso">transverso</option>
+				<option value="ângulo esplênico">ang esplênico</option>
+				<option value="cólon descendente">descendente</option>
+				<option value="cólon sigmoide">sigmoide</option>
+				<option value="reto">reto</option>
+            </select>
+            <span>&nbsp;Paris:&nbsp;</span>
+            <select id="lesao">
+                <option value="pólipo séssil com cerca de" data-extra="Pólipo séssil">Is</option>
+                <option value="pólipo subpediculado com cerca de" data-extra="Pólipo subpediculado">Isp</option>
+				<option value="pólipo pediculado com cerca de" data-extra="Pólipo pediculado">Ip</option>
+				<option value="lesão planoelevada com cerca de" data-extra="Lesão planoelevada">IIa</option>
+				<option value="lesão de crescimento lateral granular homogênea com cerca de" data-extra="LST-GH">LST-GH</option>
+				<option value="lesão de crescimento lateral granular nodular mista com cerca de" data-extra="LST granular nodular mista">LST nod mista</option>
+				<option value="lesão de crescimento lateral não granular planoelevada com cerca de" data-extra="LST-NG planoelevada">LST planoelevada</option>
+				<option value="lesão de crescimento lateral não granular pseudodeprimida com cerca de" data-extra="LST-NG pseudodeprimida">LST pseudodeprimida</option>
+				<option value="angiectasia sem sinais de sangramento com cerca de" data-extra="Angiectasia">Angiectasia</option>
+            </select>
+            <span>&nbsp;Nº:&nbsp;</span>
+            <select id="numero">
+                <option value="" data-extra="01">1</option>
+                <option value="dois" data-extra="02">2</option>
+				<option value="três" data-extra="03">3</option>
+				<option value="quatro" data-extra="04">4</option>
+				<option value="cinco" data-extra="05">5</option>
+				<option value="seis" data-extra="06">6</option>
+				<option value="sete" data-extra="07">7</option>
+				<option value="oito" data-extra="08">8</option>
+            </select>
+            <span>&nbsp;Tamanho:&nbsp;</span>
+            <select id="tamanho">
+                <option value="3">3mm</option>
+                <option value="4">4mm</option>
+				<option value="5">5mm</option>
+				<option value="6">6mm</option>
+				<option value="7">7mm</option>
+				<option value="8">8mm</option>
+				<option value="9">9mm</option>
+				<option value="10">10mm</option>
+				<option value="15">15mm</option>
+				<option value="20">20mm</option>
+				<option value="25">25mm</option>
+				<option value="30">30mm</option>
+				<option value="35">35mm</option>
+				<option value="40">40mm</option>
+            </select>
+            <span>&nbsp; a &nbsp;</span>
+            <select id="atetamanho">
+                <option value="">-</option>
+                <option value=" a 5">5mm</option>
+				<option value=" a 6">6mm</option>
+				<option value=" a 7">7mm</option>
+				<option value=" a 8">8mm</option>
+				<option value=" a 9">9mm</option>
+				<option value=" a 10">10mm</option>
+            </select>
+            <span>&nbsp;Ressecção:&nbsp;</span>
+            <select id="resseccao">
+                <option value=". Ressecção com fórceps a frio" data-extra=". Polipectomia">Fórceps</option>
+                <option value=". Ressecção com alça a frio" data-extra=". Polipectomia">Alça a frio</option>
+		<option value=". Ressecção com alça diatérmica" data-extra=". Polipectomia com eletrocauterização">Alça diatérmica</option>
+		<option value=". Ressecção por mucosectomia em monobloco pela técnica clássica" data-extra=". Mucosectomia em monobloco">EMR</option>
+		<option value=". Ressecção por mucosectomia em monobloco pela técnica underwater" data-extra=". Mucosectomia em monobloco">EMR underwater</option>
+		<option value="" data-extra="">-</option>
+            </select>
+	<span>&nbsp; e &nbsp;</span>
+            <select id="resseccao3">
+		<option value="">-</option>
+                <option value=" e fórceps a frio">Fórceps</option>
+                <option value=" e alça a frio">Alça a frio</option>
+		<option value=" e alça diatérmica">Alça diatérmica</option> 
+		<option value=" e por mucosectomia em monobloco pela técnica clássica">EMR</option>
+		<option value=" e por mucosectomia em monobloco pela técnica underwater">EMR underwater</option>
+		<option value="">-</option>
+            </select>
+		<span>&nbsp;Hemostasia:&nbsp;</span>
+            <select id="hemostasia">
+		<option value="">-</option>
+        <option value=", optando-se por hemostasia profilática com clipe metálico">Profilática clipe</option>
+		<option value=", optando-se por hemostasia profilática com clipes metálicos">Profilática clipes</option>
+		<option value=", notando-se sangramento de pequena monta. Realizada hemostasia com clipe metálico">Terapêutica clipe</option>
+		<option value=", notando-se sangramento de pequena monta. Realizada hemostasia com clipes metálicos">Terapêutica clipes</option>
+		<option value=". Realizada revisão de hemostasia com eletrocauterização em modo soft após">Revisão soft</option>
+            </select>
+		
+		<button style="font-size: 14px; font-weight: bold; padding: 10px;" onclick="addParameter()">Adicionar checkbox</button>
+        </div>
+		</div>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+            var checkbox = document.getElementById('Multiplos-achados-sortable-exame');
+            var dropdown = document.getElementById('segmento');
+
+            checkbox.addEventListener('change', function() {
+                if (this.checked) {
+                    dropdown.value = '2';
+                } else {
+                    dropdown.value = '1';
+                }
+            });
+        });
+		
+    document.getElementById('segmento').style.display = 'none';
+    // or
+    // document.getElementById('sortable-alteracao').style.visibility = 'hidden';
+
+</script>
+    </section>
+<hr>
+	
+	<section id="diverticulo" class="flex-container">
+	<span class="bold" style="font-size: 20px;">Divertículos:&nbsp;</span>
+    <div class="item ui-sortable-handle" id="sortable-diverticulo">
+	<div class="item ui-sortable-handle"><input type="checkbox" id="diver-sortable" name="diver-sortable" data-label="diver-sortable" value="">
+            
+			<select id="diver-segmento" style="display: none;">
+                <option value="1">1</option>
+                <option value="2">&gt;1</option>
+				<option value="3">div e lesão no mesmo segmento</option>
+			</select>
+
+			<label for="diver-sortable" contenteditable="true">Local:&nbsp;</label>
+            <select id="diver-local">
+                <option value="ceco">ceco</option>
+                <option value="cólon ascendente">ascendente</option>
+                <option value="cólon transverso">transverso</option>
+				<option value="cólon descendente">descendente</option>
+				<option value="cólon sigmoide">sigmoide</option>
+				<option value="cólon direito">cólon direito</option>
+				<option value="cólon esquerdo">cólon esquerdo</option>
+				<option value="todos os segmentos">difusa</option>
+				<option value="todos os segmentos, sendo mais frequentes em cólon esquerdo">difusa + à esq</option>
+            </select>
+			<span>&nbsp;e&nbsp;</span>
+			<select id="diver-local2">
+				<option value="">-</option>
+                <option value=" e ascendente">ascendente</option>
+                <option value=" e transverso">transverso</option>
+				<option value=" e descendente">descendente</option>
+				<option value=" e sigmoide">sigmoide</option>
+            </select>
+			<span>&nbsp;&nbsp;Frequência:&nbsp;</span><select id="diver-freq">
+			<option value="raros e esparsos" data-extra="Divertículos esparsos em ">Raros e esparsos</option>
+			<option value="raros" data-extra="Divertículos em ">Raros</option>
+			<option value="alguns" data-extra="Doença diverticular de ">Alguns</option>
+			<option value="numerosos" data-extra="Doença diverticular de ">Numerosos</option>
+			</select>
+			<button style="font-size: 14px; font-weight: bold; padding: 10px;" onclick="addParameterdiv()">Adicionar checkbox</button>
+			</div>
+			</div>
+	<script>
+    document.addEventListener('DOMContentLoaded', function () {
+            var checkbox = document.getElementById('Multiplos-achados-sortable-exame');
+            var dropdown = document.getElementById('diver-segmento');
+
+            checkbox.addEventListener('change', function() {
+                if (this.checked) {
+                    dropdown.value = '2';
+                } else {
+                    dropdown.value = '1';
+                }
+            });
+        });
+		
+    document.getElementById('diver-segmento').style.display = 'none';
+    // or
+    // document.getElementById('sortable-alteracao').style.visibility = 'hidden';
+
+	</script>
+	</section>
+<hr>
+
+<section id="canalanal" class="flex-container">
+	<span class="bold" style="font-size: 20px;">Canal anal:&nbsp;</span>
+    <div class="item ui-sortable-handle ui-sortable" id="sortable-canalanal">
+	<div class="item ui-sortable-handle"><input type="checkbox" id="canal-sortable" name="canal-sortable" data-label="canal-sortable" value="">
+            
+			<select id="canal-segmento" style="display: none;">
+                <option value="1">1</option>
+                <option value="2">&gt;1</option>
+			</select>
+
+			<label for="canal-sortable" contenteditable="true">Alteração:&nbsp;</label>
+            <select id="alt-anal">
+                <option value="notam-se vasos hemorroidários discretamente ingurgitados" data-extra="">vasos discretamente ingurgitados</option>
+                <option value="notam-se vasos hemorroidários ingurgitados" data-extra="Hemorroidas">hemorroidas</option>
+                <option value="nota-se enantema focal em mucosa retal adjacente à linha pectínea, alteração correlacionada a prolapso redutível" data-extra="Provável prolapso redutível de mucosa retal">prolapso</option>
+				<option value="nota-se cicatriz por provável manipulação cirúrgica em mucosa retal adjacente à linha pectínea" data-extra="">cicatriz</option>
+            </select>
+			<span>&nbsp;Local&nbsp;</span>
+			<select id="local-anal">
+				<option value="" data-extra="">-</option>
+                <option value="acima da linha pectínea" data-extra=" internas">acima da linha pectínea</option>
+                <option value="abaixo da linha pectínea" data-extra=" externas">abaixo da linha pectínea</option>
+				<option value="acima e abaixo da linha pectínea" data-extra=" mistas">mista</option>
+            </select>
+			<button style="font-size: 14px; font-weight: bold; padding: 10px;" onclick="addParametercanal()">Adicionar checkbox</button>
+			</div>
+			</div>
+		<script>
+    document.addEventListener('DOMContentLoaded', function () {
+            var checkbox = document.getElementById('Multiplos-achados-sortable-exame');
+            var dropdown = document.getElementById('canal-segmento');
+
+            checkbox.addEventListener('change', function() {
+                if (this.checked) {
+                    dropdown.value = '2';
+                } else {
+                    dropdown.value = '1';
+                }
+            });
+        });
+		
+    document.getElementById('canal-segmento').style.display = 'none';
+    // or
+    // document.getElementById('sortable-alteracao').style.visibility = 'hidden';
+
+	</script>
+</section>
+<hr>
+
+
+	<section id="Conclusão" class="flex-container">
+	<span class="bold" style="font-size: 20px;">Conclusão:&nbsp;</span>
+	
+	<div id="sortable-conclusao" class="ui-sortable">
+	<div class="item ui-sortable-handle"><input type="checkbox" id="concnormal" name="Normal" value="- Exame dentro dos padrões de normalidade.">
+    <label for="concnormal" contenteditable="true">Normal</label></div>
+
+<div class="item ui-sortable-handle" style=""><input type="checkbox" name="Bx seriadas" value="- Realizadas biópsias seriadas de íleo terminal, cólon direito, cólon esquerdo e reto." id="Bx seriadas-sortable-conclusao"><label for="Bx seriadas-sortable-conclusao" contenteditable="true">Bx seriadas</label></div>
+<div class="item ui-sortable-handle" style=""><input type="checkbox" name="RTS normal" value="- Exame dentro dos padrões de normalidade." id="RTS normal-sortable-conclusao"><label for="RTS normal-sortable-conclusao" contenteditable="true">RTS normal</label></div>
+<div class="item ui-sortable-handle"><input type="checkbox" name="Preparo regular" value="- Preparo regular para o exame, reduzindo a taxa de detecção de lesões. Recomenda-se realização de nova colonoscopia em até um ano." id="Preparo regular-sortable-conclusao"><label for="Preparo regular-sortable-conclusao" contenteditable="true">Preparo regular</label></div>
+<div class="item ui-sortable-handle" style=""><input type="checkbox" name="Colect esq reconst" value="- Status pós-operatório de colectomia esquerda com reconstrução de trânsito." id="Colect esq reconst-sortable-conclusao"><label for="Colect esq reconst-sortable-conclusao" contenteditable="true">Colect esq reconst</label></div>
+<div class="item ui-sortable-handle" style=""><input type="checkbox" name="Colect dir reconst" value="- Status pós-operatório de colectomia direita com reconstrução de trânsito.<br>" id="Colect dir reconst-sortable-conclusao"><label for="Colect dir reconst-sortable-conclusao" contenteditable="true">Colect dir reconst</label></div>
+<div class="item ui-sortable-handle" style=""><input type="checkbox" name="Retossigmoidect c/ reconst" value="- Status pós-operatório de retossigmoidectomia com reconstrução de trânsito intestinal." id="Retossigmoidect c/ reconst-sortable-conclusao"><label for="Retossigmoidect c/ reconst-sortable-conclusao" contenteditable="true">Retossigmoidect c/ reconst</label></div>
+<div class="item ui-sortable-handle" style=""><input type="checkbox" name="Retossigmoidect Hartmann + retite de desuso" value="- Status pós-operatório de retossigmoidectomia à Hartmann.<br>- Retite de desuso." id="Retossigmoidect Hartmann + retite de desuso-sortable-conclusao"><label for="Retossigmoidect Hartmann + retite de desuso-sortable-conclusao" contenteditable="true">Retossigmoidect Hartmann + retite de desuso</label></div>
+		<br class="ui-sortable-handle">
+<div class="item ui-sortable-handle">
+            <input type="text" name="alteracao-conc" value="" id="alteracao-conc-sortable-conclusao">
+            <label for="alteracao-conc-sortable-conclusao" contenteditable="true">Simples&nbsp; </label>
+            <select id="numero-conc">
+                <option value="">1</option>
+                <option value="02">2</option>
+                <option value="03">3</option>
+				<option value="04">4</option>
+				<option value="05">5</option>
+				<option value="">-</option>
+            </select>
+            <select id="lesao-conc">
+                <option value="Pólipo séssil">Is</option>
+                <option value="Pólipo subpediculado">Isp</option>
+                <option value="Pólipo pediculado">Ip</option>
+				<option value="Lesão planoelevada">IIa</option>
+				<option value="LST-GH">LST-GH</option>
+				<option value="LST granular nodular mista">LST nod mista</option>
+				<option value="LST-NG planoelevada">LST planoelevada</option>
+				<option value="LST-NG pseudodeprimida">LST pseudodeprimida</option>
+				<option value="Angiectasia">Angiectasia</option>
+            </select>
+            <select id="local-conc">
+                <option value="ceco">ceco</option>
+                <option value="cólon ascendente">ascendente</option>
+				<option value="ângulo hepático">ang hepático</option>
+                <option value="cólon transverso">transverso</option>
+				<option value="ângulo esplênico">ang esplênico</option>
+				<option value="cólon descendente">descendente</option>
+				<option value="cólon sigmoide">sigmoide</option>
+				<option value="reto">reto</option>
+            </select>
+            <select id="resseccao-conc">
+                <option value="Polipectomia.">Polipectomia</option>
+                <option value="Ressecção com alça a frio (polipectomia).">IIa polipectomia</option>
+                <option value="Polipectomia com eletrocauterização.">Alça diatérmica</option>
+				<option value="Mucosectomia em monobloco.">EMR monobloco</option>
+				<option value="Mucosectomia fragmentada">EMR fragmentada</option>
+				<option value="">-</option>
+            </select>
+    <button style="font-size: 14px; font-weight: bold; padding: 10px;" onclick="addConclusaoCheckbox()">Adicionar checkbox</button>
+        </div>
+<br class="ui-sortable-handle">
+<div class="item ui-sortable-handle">
+            <input type="text" name="alteracoes-conc" value="" id="alteracoes-conc-sortable-conclusao">
+            <label for="alteracoes-conc-sortable-conclusao" contenteditable="true">Composto&nbsp; </label>
+            <select id="lesao2-conc">
+                <option value="Pólipos sésseis">Is</option>
+                <option value="Pólipos subpediculados">Isp</option>
+                <option value="Pólipos pediculados">Ip</option>
+				<option value="Lesões planoelevadas">IIa</option>
+				<option value="LSTs-GH">LSTs-GH</option>
+				<option value="LSTs granulares nodulares mistas">LSTs nod mista</option>
+				<option value="LSTs-NG planoelevadas">LSTs planoelevadas</option>
+				<option value="LSTs-NG pseudodeprimidas">LSTs pseudodep</option>
+            </select>
+			<span>&nbsp;&nbsp;Ceco:&nbsp;</span><select id="numeroceco-conc">
+				<option value="">0</option>
+                <option value=" 01 em ceco;">1</option>
+                <option value=" 02 em ceco;">2</option>
+                <option value=" 03 em ceco;">3</option>
+				<option value=" 04 em ceco;">4</option>
+				<option value=" 05 em ceco;">5</option>
+            </select>
+			<span>&nbsp;&nbsp;Asc:&nbsp;</span><select id="numeroasc-conc">
+				<option value="">0</option>
+                <option value=" 01 em cólon ascendente;">1</option>
+                <option value=" 02 em cólon ascendente;">2</option>
+                <option value=" 03 em cólon ascendente;">3</option>
+				<option value=" 04 em cólon ascendente;">4</option>
+				<option value=" 05 em cólon ascendente;">5</option>
+				<option value=" 06 em cólon ascendente;">6</option>
+				<option value=" 07 em cólon ascendente;">7</option>
+				<option value=" 08 em cólon ascendente;">8</option>
+            </select>
+			<span>&nbsp;&nbsp;Ang hep:&nbsp;</span><select id="numeroanghep-conc">
+				<option value="">0</option>
+                <option value=" 01 em ângulo hepático;">1</option>
+                <option value=" 02 em ângulo hepático;">2</option>
+                <option value=" 03 em ângulo hepático;">3</option>
+				<option value=" 04 em ângulo hepático;">4</option>
+				<option value=" 05 em ângulo hepático;">5</option>
+            </select>
+			<span>&nbsp;&nbsp;Transv:&nbsp;</span><select id="numerotransv-conc">
+				<option value="">0</option>
+                <option value=" 01 em cólon transverso;">1</option>
+                <option value=" 02 em cólon transverso;">2</option>
+                <option value=" 03 em cólon transverso;">3</option>
+				<option value=" 04 em cólon transverso;">4</option>
+				<option value=" 05 em cólon transverso;">5</option>
+				<option value=" 06 em cólon transverso;">6</option>
+				<option value=" 07 em cólon transverso;">7</option>
+				<option value=" 08 em cólon transverso;">8</option>
+            </select>
+			<span>&nbsp;&nbsp;Ang esp:&nbsp;</span><select id="numeroangesp-conc">
+				<option value="">0</option>
+                <option value=" 01 em ângulo esplênico;">1</option>
+                <option value=" 02 em ângulo esplênico;">2</option>
+                <option value=" 03 em ângulo esplênico;">3</option>
+				<option value=" 04 em ângulo esplênico;">4</option>
+				<option value=" 05 em ângulo esplênico;">5</option>
+            </select>
+			<span>&nbsp;&nbsp;Desc:&nbsp;</span><select id="numerodesc-conc">
+				<option value="">0</option>
+                <option value=" 01 em cólon descendente;">1</option>
+                <option value=" 02 em cólon descendente;">2</option>
+                <option value=" 03 em cólon descendente;">3</option>
+				<option value=" 04 em cólon descendente;">4</option>
+				<option value=" 05 em cólon descendente;">5</option>
+				<option value=" 06 em cólon descendente;">6</option>
+				<option value=" 07 em cólon descendente;">7</option>
+				<option value=" 08 em cólon descendente;">8</option>
+				</select>
+			<span>&nbsp;&nbsp;Sig:&nbsp;</span><select id="numerosig-conc">
+				<option value="">0</option>
+                <option value=" 01 em cólon sigmoide;">1</option>
+                <option value=" 02 em cólon sigmoide;">2</option>
+                <option value=" 03 em cólon sigmoide;">3</option>
+				<option value=" 04 em cólon sigmoide;">4</option>
+				<option value=" 05 em cólon sigmoide;">5</option>
+				<option value=" 06 em cólon sigmoide;">6</option>
+				<option value=" 07 em cólon sigmoide;">7</option>
+				<option value=" 08 em cólon sigmoide;">8</option>
+				</select>
+				<span>&nbsp;&nbsp;Reto:&nbsp;</span><select id="numeroreto-conc">
+				<option value="">0</option>
+                <option value=" 01 em reto;">1</option>
+                <option value=" 02 em reto;">2</option>
+                <option value=" 03 em reto;">3</option>
+				<option value=" 04 em reto;">4</option>
+				<option value=" 05 em reto;">5</option>
+				<option value=" 06 em reto;">6</option>
+				<option value=" 07 em reto;">7</option>
+				<option value=" 08 em reto;">8</option>
+            </select>
+            <span>&nbsp;&nbsp;Ressecção:&nbsp;</span><select id="resseccao2-conc">
+                <option value="Polipectomias">polipectomia</option>
+                <option value="Ressecções com alça a frio (polipectomia)">IIa polipectomia</option>
+                <option value="Polipectomias com eletrocauterização">alça diatérmica</option>
+				<option value="Mucosectomias em monobloco">EMR monobloco</option>
+				<option value="Mucosectomias fragmentada">EMR fragmentada</option>
+            </select>
+    <button style="font-size: 14px; font-weight: bold; padding: 10px;" onclick="addConclusao2Checkbox()">Adicionar checkbox</button>
+        </div>
+
+		</div></section>
+		<section id="obs" class="flex-container">
+	<span class="bold" style="font-size: 20px;">Observação:&nbsp;</span>
+	<div id="sortable-obs" class="ui-sortable">
+	
+<div class="item ui-sortable-handle"><input type="checkbox" name="Redundante" value="nota-se certa redundância do cólon, que pode justificar quadro de constipação e eventual distensão abdominal." id="Redundante-sortable-obs"><label for="Redundante-sortable-obs" contenteditable="true">Redundante</label></div>
+<div class="item ui-sortable-handle"><input type="checkbox" name="Enc amb lesões" value="realizado encaminhamento para ressecção endoscópica em Ambulatório de Grandes Lesões." id="Enc amb lesões-sortable-obs"><label for="Enc amb lesões-sortable-obs" contenteditable="true">Enc amb lesões</label></div>
+<div class="item ui-sortable-handle"><input type="checkbox" name="Projeto alerta" value="realizado encaminhamento para avaliação do grupo de Oncologia por meio de Projeto Alerta." id="Projeto alerta-sortable-obs"><label for="Projeto alerta-sortable-obs" contenteditable="true">Projeto alerta</label></div>
+<div class="item ui-sortable-handle"><input type="checkbox" name="Marília" value="realizado por Dra. Marília e acompanhado por Dr. Eduardo Ogawa." id="Marília-sortable-obs"><label for="Marília-sortable-obs" contenteditable="true">Marília</label></div>
+<div class="item ui-sortable-handle"><input type="checkbox" name="Letícia" value="realizado por Dra. Letícia e acompanhado por Dr. Eduardo Ogawa." id="Letícia-sortable-obs"><label for="Letícia-sortable-obs" contenteditable="true">Letícia</label></div>
+<div class="item ui-sortable-handle"><input type="checkbox" name="Gabriela" value="realizado por Dra. Gabriela e acompanhado por Dr. Eduardo Ogawa." id="Gabriela-sortable-obs"><label for="Gabriela-sortable-obs" contenteditable="true">Gabriela</label></div>
+<div class="item ui-sortable-handle"><input type="checkbox" name="Valéria" value="realizado por Dra. Valéria e acompanhado por Dr. Eduardo Ogawa." id="Valéria-sortable-obs"><label for="Valéria-sortable-obs" contenteditable="true">Valéria</label></div>
+<div class="item ui-sortable-handle"><input type="checkbox" name="Pinça" value="
+Material utilizado: pinça de biópsia." id="Pinça-sortable-obs"><label for="Pinça-sortable-obs" contenteditable="true">Pinça</label></div>
+<div class="item ui-sortable-handle"><input type="checkbox" name="alça" value="Material utilizado: alça de polipectomia." id="alça-sortable-obs"><label for="alça-sortable-obs" contenteditable="true">alça</label></div></div>
+		</section>
+<hr>	
+	<section id="Outros" class="flex-container">
+	<span class="bold" style="font-size: 20px;">Outros:&nbsp;</span>
+	
+	<div id="sortable-outros" class="ui-sortable">
+	
+	<div class="item ui-sortable-handle" style=""><input type="checkbox" name="Atestado M" value="<span class='bold'>ATESTADO MÉDICO</span><br><br><br><br>Atesto que o paciente foi submetido a exame com sedação hoje e deve permanecer afastado de suas atividades laborais pelo restante do dia.<br><br><br><br><br>CID-10: Z019" id="Atestado M-sortable-outros"><label for="Atestado M-sortable-outros" contenteditable="true">Atestado M</label></div><div class="item ui-sortable-handle"><input type="checkbox" id="atestadomulher" name="atestadomulher" value="<span class='bold'>ATESTADO MÉDICO</span><br><br><br><br>Atesto que a paciente foi submetida a exame com sedação hoje e deve permanecer afastada de suas atividades laborais pelo restante do dia.<br><br><br><br><br>CID-10: Z019">
+	<label for="atestadomulher" contenteditable="true">Atestado F</label></div>
+
+<div class="item ui-sortable-handle"><input type="checkbox" name="Fiber mais" value="<span class='bold'>Receituário Médico</span><br><br><br><br>1. Fiber Mais<br><br>Misturar uma medida a um copo de água ou suco e tomar uma vez ao dia por 15 dias.<br><br><br>2- Buscopan composto gotas<br><br>Tomar 20 gotas de 6 em 6 horas, se tiver cólicas abdominais.<br><br><br>3- Proctyl pomada<br><br>Passar na região anal de 8 em 8 horas, se tiver desconforto anal." id="Fiber mais-sortable-outros">
+<label for="Fiber mais-sortable-outros" contenteditable="true">Fiber mais</label>
+</div><div class="item ui-sortable-handle" style=""><input type="checkbox" name="Cipro" value="<span class='bold'>Receituário Médico</span><br><br><br><br>1. Ciprofloxacino 500mg<br><br>Tomar um comprimido de 12 em 12 horas por 05 dias.<br><br><br>2- Pantoprazol 20mg<br><br>Tomar um comprimido 20 minutos antes do café da manhã e do jantar por 07 dias.<br><br><br>3- Buscopan composto gotas<br><br>Tomar 20 gotas de 6 em 6 horas, se tiver cólicas abdominais.<br><br><br>" id="Cipro-sortable-outros">
+<label for="Cipro-sortable-outros" contenteditable="true">Cipro</label></div>
+
+
+<div class="item ui-sortable-handle"><input type="checkbox" name="Pós-ressecção" value="<span class='bold'>Orientação de Cuidados Pós-ressecção Colonoscópica</span><br><br><br><br>Após a retirada de pólipos ou lesões durante a colonoscopia, é importante seguir algumas orientações para garantir uma recuperação adequada e minimizar o risco de complicações, como recomendado a seguir:<br><br><br>- Dieta Branda: nos primeiros dias após o procedimento, opte por uma dieta leve e de fácil digestão, como alimentos cozidos, sopas, purês, iogurtes e frutas sem casca. Evite alimentos muito condimentados, frituras e alimentos ricos em fibras, que podem ser difíceis de digerir. Gradualmente reintroduza alimentos ricos em fibra à sua dieta conforme tolerância, sempre respeitando suas necessidades individuais e orientações médicas.<br><br>- Hidratação: beba bastante líquido, preferencialmente água, para ajudar na recuperação e prevenir a desidratação.<br><br>- Medicações: caso o médico responsável tenha julgado necessário, haverá receituário médico anexo. Atente-se também para estas recomendações, especialmente se houver prescrição de analgésicos ou outros medicamentos.<br><br>- Atividades Físicas: não realize atividades físicas moderadas a intensas, como levantar mais que 5kg, caminhadas mais longas que 5 minutos, subir escadas de maneira mais rápida, prática de academia ou de esportes durante sete dias a partir da data do procedimento. Após este período, você pode retomar atividades de forma gradual.<br><br>- Sinais de alerta: esteja atento a sintomas como dor abdominal moderada a intensa, febre, sangramento significativo à evacuação, ou qualquer outro sintoma preocupante. Caso ocorram, entre em contato imediatamente com seu médico ou procure o Pronto Atendimento.<br><br>- Acompanhamento Médico: é importante comparecer às consultas de seguimento conforme recomendado pelo seu médico para avaliação dos resultados do exame e eventuais biópsias." id="Pós-ressecção-sortable-outros"><label for="Pós-ressecção-sortable-outros" contenteditable="true">Pós-ressecção</label></div>
+<div class="item ui-sortable-handle"><input type="checkbox" name="AP lesões" value="Aos cuidados de Dr. Denilson Mayrink ou Dra. Juliana Micelli." id="AP lesões-sortable-outros"><label for="AP lesões-sortable-outros" contenteditable="true">AP lesões</label></div>
+<div class="item ui-sortable-handle"><input type="checkbox" name="Lesões colono" value="ORIENTAÇÕES PÓS-TERAPÊUTICA CONOLOSCÓPICA EM <br>AMBULATÓRIO DE LESÕES:<br><br>* Aguardar contato da Sra. Marina (AMB de lesões) e equipe médica <br>da endoscopia para teleconsulta com informações sobre resultados <br>da biópsias, necessidade de complementação terapêutica e <br>programação de controle colonoscópico. NÃO É NECESSÁRIO <br>AGENDAMENTO DE CONSULTA COM ESPECIALISTA ANTES DO <br>NOSSO CONTATO.<br><br>Para dúvidas, telefone corporativo Ambulatório de Lesões (Marina ou Juliana): <br>(11) 95324-4041<br><br>DURANTE 7 DIAS:<br>1. Não realizar atividade física;<br>2. Evitar exposição ao sol por períodos prolongados;<br>3. Dieta laxativa e leve;<br>4. Em caso de sangramento volumoso nas fezes com coágulos ou dor <br>abdominal intensa, procurar atendimento de urgência via Pronto <br>Socorro da Prevent Senior (Hospital Madrid) e/ou entrar em contato com Dr. Eduardo Ogawa (11 97632-1588)." id="Lesões colono-sortable-outros"><label for="Lesões colono-sortable-outros" contenteditable="true">Lesões colono</label></div>
+<div class="item ui-sortable-handle"><input type="checkbox" name="Atestado lesões" value="<span class='bold'>ATESTADO MÉDICO</span><br><br><br><br>Atesto que a paciente foi submetida a procedimento médico hoje e deve permanecer afastada de esforços físicos moderados a intensos durante 07 dias a partir de hoje.<br><br><br><br><br>CID-10: K635" id="Atestado lesões-sortable-outros"><label for="Atestado lesões-sortable-outros" contenteditable="true">Atestado lesões</label></div></div>
+</section>
+<hr>
+
+<div id="checkbox-dropzone" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+
+<script>
+//drag and drop
+$(function() {
+  function makeSortable(selector) {
+    $(selector).sortable({
+      update: function(event, ui) {
+        var items = $(selector).sortable('toArray');
+        for (var i = 0; i < items.length; i++) {
+          $(selector).append($('#' + items[i]));
+        }
+      }
+    });
+  }
+
+  var sortableIds = [
+	'#sortable-indicacao',
+    '#sortable-equipamento',
+    '#sortable-sedacao',
+    '#sortable-preparo',
+    '#sortable-exame',
+    '#sortable-alteracao',
+	'#sortable-canalanal',
+    '#sortable-conclusao',
+	'#sortable-obs',
+    '#sortable-outros'
+  ];
+
+  for (var i = 0; i < sortableIds.length; i++) {
+    makeSortable(sortableIds[i]);
+  }
+});
+</script>
+	 
+	<button style="font-size: 14px; font-weight: Bold; padding: 10px;" onclick="generateText()">Gerar e Copiar Laudo</button>
+	<button style="font-size: 14px; font-weight: Bold; padding: 10px;" onclick="uncheckAll()">Limpar Seleção</button>
+	<br><br>
+	
+	  <script>
+    const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+
+    checkboxes.forEach((checkbox) => {
+      checkbox.addEventListener('click', (event) => {
+        const selectedLabel = event.target.closest('label').textContent.trim();
+        
+        checkboxes.forEach((checkbox) => {
+          const label = checkbox.closest('label').textContent.trim();
+          if (label === selectedLabel && checkbox !== event.target) {
+            checkbox.checked = true;
+          }
+        }
+      }
+    }
+  </script>
+	
+	<div class="my-textarea" id="output" contenteditable="true"></div>
+
+<script>
+function getSelectedOptionValue(selectElement) {
+    return selectElement.value;
+}
+
+function getSelectedOptionExtra(selectElement) {
+    return selectElement.options[selectElement.selectedIndex].getAttribute('data-extra');
+}
+
+function createCheckboxDiv(text, name) {
+    const div = document.createElement('div');
+    div.className = 'item ui-sortable-handle';
+    div.style.display = 'block';
+    div.innerHTML = `<input type="checkbox" name="${name}" value="${text}" checked><label>${text}</label>`;
+    return div;
+}
+
+function appendToSortable(elementId, div) {
+    document.getElementById(elementId).appendChild(div);
+}
+
+function addParametersedacao() {
+    const fentanil = getSelectedOptionValue(document.getElementById('fentanil'));
+    const midazolam = getSelectedOptionValue(document.getElementById('midazolam'));
+
+    let sedacaoText = `Fentanil ${fentanil} + Midazolam ${midazolam} + Propofol titulado IV.<br>Suplementação de O2 por catéter nasal a 3 L/min.<br>Monitorização de oximetria de pulso e PNI.`;
+
+    appendToSortable('sortable-sedacao', createCheckboxDiv(sedacaoText, 'sedacao'));
+}
+
+function addParameter() {
+    const localizacao = document.getElementById('localizacao').value;
+    const lesaoSelect = document.getElementById('lesao');
+    const lesao = getSelectedOptionValue(lesaoSelect);
+    const lesaoExtra = getSelectedOptionExtra(lesaoSelect);
+    const numeroSelect = document.getElementById('numero');
+    const numero = getSelectedOptionValue(numeroSelect);
+    const numeroExtra = getSelectedOptionExtra(numeroSelect);
+    const tamanho = document.getElementById('tamanho').value;
+    const atetamanho = document.getElementById('atetamanho').value;
+    const resseccaoSelect = document.getElementById('resseccao');
+    const resseccao = getSelectedOptionValue(resseccaoSelect);
+    const resseccaoExtra = getSelectedOptionExtra(resseccaoSelect);
+    const segmentoSelect = document.getElementById('segmento');
+	const hemostasia = document.getElementById('hemostasia').value;
+    let alteracaoText, conclusaoText;
+
+    if (segmentoSelect.value === '1') {
+        alteracaoText = `A mucosa colorretal apresenta aspecto geral preservado, exceto pela presença de ${numero} ${lesao} ${tamanho}${atetamanho}mm no ${localizacao}${resseccao}${hemostasia}.`;
+        
+        const diverSegmentoSelect = document.getElementById('diver-segmento');
+        if (diverSegmentoSelect) {
+            diverSegmentoSelect.selectedIndex = 2;
+        }
+
+        conclusaoText = `- ${numeroExtra} ${lesaoExtra} em ${localizacao}${resseccaoExtra}.`;
+
+        if (lesaoExtra.includes("esão planoelevada")) {
+            conclusaoText = conclusaoText.replace("Polipectomia", "Ressecção com alça a frio (polipectomia)");
+        }
+        if (numeroExtra !== "01") {
+            const replacements = {
+                "ólipo séssil": "ólipos sésseis",
+                "ólipo subpediculado": "ólipos subpediculados",
+                "ólipo pediculado": "ólipos pediculados",
+                "esão": "esões",
+				"planoelevada": "planoelevadas",
+                "essecção": "essecções",
+                "tomia": "tomias",
+				"ectasia": "ectasias",
+				"granular": "granulares",
+				"nodular mista": "nodulares mistas",
+				"deprimida": "deprimidas"
+            };
+            for (const [key, value] of Object.entries(replacements)) {
+                conclusaoText = conclusaoText.replace(key, value);
+            }
+        }
+        appendToSortable('sortable-conclusao', createCheckboxDiv(conclusaoText, 'conclusao'));
+    } else if (segmentoSelect.value === '2') {
+        alteracaoText = `- ${localizacao}: ${numero} ${lesao} ${tamanho}${atetamanho}mm${resseccao}${hemostasia}.`;
+    } else {
+        return;
+    }
+
+    if (numero !== "") {
+        const replacements = {
+            "ólipo séssil": "ólipos sésseis",
+            "ólipo subpediculado": "ólipos subpediculados",
+            "ólipo pediculado": "ólipos pediculados",
+            "esão": "esões",
+			"planoelevada": "planoelevadas",
+            "essecção": "essecções",
+			"tomia": "tomias",
+			"ectasia": "ectasias",
+			"granular": "granulares",
+			"nodular mista": "nodulares mistas",
+			"deprimida": "deprimidas"
+        };
+        for (const [key, value] of Object.entries(replacements)) {
+            alteracaoText = alteracaoText.replace(key, value);
+        }
+    }
+
+    if (lesao.includes("lesão")) {
+        alteracaoText = alteracaoText.replace("um", "uma").replace("dois", "duas");
+    }
+	if (lesao.includes("angiectasia")) {
+        alteracaoText = alteracaoText.replace("um", "uma").replace("dois", "duas");
+    }
+
+    appendToSortable('sortable-alteracao', createCheckboxDiv(alteracaoText, 'alteracao'));
+}
+
+function addParameterdiv() {
+    const diverLocal = document.getElementById('diver-local').value;
+    const diverLocal2 = document.getElementById('diver-local2').value;
+    const diverFreqSelect = document.getElementById('diver-freq');
+    const diverFreq = getSelectedOptionValue(diverFreqSelect);
+    const diverFreqExtra = getSelectedOptionExtra(diverFreqSelect);
+    const diverSegmentoSelect = document.getElementById('diver-segmento');
+    let diverticuloText = `A mucosa colorretal apresenta aspecto geral preservado, exceto pela presença de ${diverFreq} óstios diverticulares sem sinais inflamatórios em ${diverLocal}${diverLocal2}.`;
+    let conclusaoText = `- ${diverFreqExtra} ${diverLocal}${diverLocal2}.`;
+
+    if (diverSegmentoSelect.value === '2') {
+        diverticuloText = `- ${diverFreq} óstios diverticulares sem sinais inflamatórios em ${diverLocal}${diverLocal2}.`;
+    } else if (diverSegmentoSelect.value === '3') {
+        diverticuloText = `Ainda no ${diverLocal}${diverLocal2}, encontram-se ${diverFreq} óstios diverticulares sem sinais inflamatórios.`;
+    }
+
+    if (diverLocal.includes("todos")) {
+        conclusaoText = "- Doença diverticular difusa dos cólons.";
+    }
+
+    if (diverLocal2 !== "") {
+        diverticuloText = diverticuloText.replace("cólon", "cólons");
+        conclusaoText = conclusaoText.replace("cólon", "cólons");
+    }
+
+    appendToSortable('sortable-diverticulo', createCheckboxDiv(diverticuloText, 'diverticulo'));
+    appendToSortable('sortable-conclusao', createCheckboxDiv(conclusaoText, 'conclusao'));
+}
+
+function addParametercanal() {
+    const altanalSelect = document.getElementById('alt-anal');
+    const localanalSelect = document.getElementById('local-anal');
+    const canalSegmentoSelect = document.getElementById('canal-segmento');
+
+    const altanal = altanalSelect.value;
+    const localanal = localanalSelect.value;
+    const altanalExtra = getSelectedOptionExtra(altanalSelect);
+	const localanalExtra = getSelectedOptionExtra(localanalSelect);
+    console.log("altanal:", altanal);
+    console.log("localanal:", localanal);
+    console.log("altanalExtra:", altanalExtra);
+	console.log("localanalExtra:", localanalExtra);
+
+    let canalanalText = `À retroversão no reto, ${altanal} ${localanal}.`;
+    if (canalSegmentoSelect.value === '2') {
+        canalanalText = `- à retroversão no reto, ${altanal} ${localanal}.`;
+    }
+
+    appendToSortable('sortable-canalanal', createCheckboxDiv(canalanalText, 'canalanal'));
+
+    if (altanalExtra && altanalExtra.trim() !== "") {
+        let conclusaoText = `- ${altanalExtra}${localanalExtra}.`;
+        appendToSortable('sortable-conclusao', createCheckboxDiv(conclusaoText, 'conclusao'));
+    }
+}
+
+function addConclusaoCheckbox() {
+    const numeroConc = document.getElementById('numero-conc').value;
+    const lesaoConc = document.getElementById('lesao-conc').value;
+    const localConc = document.getElementById('local-conc').value;
+    const resseccaoConc = document.getElementById('resseccao-conc').value;
+    let conclusaoText = `- ${numeroConc} ${lesaoConc} no ${localConc}. ${resseccaoConc}`;
+
+    if (numeroConc > 1) {
+        const replacements = {
+            "ólipo séssil": "ólipos sésseis",
+            "ólipo subpediculado": "ólipos subpediculados",
+            "ólipo pediculado": "ólipos pediculados",
+            "esão": "esões",
+			"planoelevada": "planoelevadas",
+            "essecção": "essecções",
+			"tomia": "tomias",
+			"ectasia": "ectasias",
+			"granular": "granulares",
+			"nodular mista": "nodulares mistas",
+			"deprimida": "deprimidas",
+			"fragmentada": "fragmentadas"
+        };
+        for (const [key, value] of Object.entries(replacements)) {
+            conclusaoText = conclusaoText.replace(key, value);
+        }
+    }
+
+    appendToSortable('sortable-conclusao', createCheckboxDiv(conclusaoText, 'conclusao'));
+}
+
+function addConclusao2Checkbox() {
+    const lesao2Conc = document.getElementById('lesao2-conc').value;
+    const numerocecoConc = document.getElementById('numeroceco-conc').value;
+    const numeroascConc = document.getElementById('numeroasc-conc').value;
+    const numeroanghepConc = document.getElementById('numeroanghep-conc').value;
+    const numerotransvConc = document.getElementById('numerotransv-conc').value;
+    const numeroangespConc = document.getElementById('numeroangesp-conc').value;
+    const numerodescConc = document.getElementById('numerodesc-conc').value;
+    const numerosigConc = document.getElementById('numerosig-conc').value;
+    const numeroretoConc = document.getElementById('numeroreto-conc').value;
+    const resseccao2Conc = document.getElementById('resseccao2-conc').value;
+    let conclusaoText = `- ${lesao2Conc} (${numerocecoConc}${numeroascConc}${numeroanghepConc}${numerotransvConc}${numeroangespConc}${numerodescConc}${numerosigConc}${numeroretoConc}). ${resseccao2Conc}.`;
+
+    conclusaoText = conclusaoText.replace(/\( /g, "(") .replace(/;\)/g, ")") .replace(/cólon /g, "");
+    appendToSortable('sortable-conclusao', createCheckboxDiv(conclusaoText, 'conclusao'));
+}
+
+function generateText() {
+    let text = `<span class='bold'>COLONOSCOPIA</span><br><br><br><br>`;
+
+    const sections = [
+		{ id: 'sortable-indicacao', prefix: "<span class='bold'>Indicação: </span>", suffix: '<br><br>' },
+        { id: 'sortable-equipamento', prefix: "<span class='bold'>Equipamento: </span>", suffix: '<br><br>' },
+        { id: 'Sedação', prefix: "<span class='bold'>Sedação: </span>", suffix: '<br><br><br>' },
+        { id: 'Exame', prefix: '', suffix: '<br>' },
+        { id: 'alteracao', prefix: '', suffix: '<br>' },
+        { id: 'diverticulo', prefix: '', suffix: '<br>' },
+		{ id: 'canalanal', prefix: '', suffix: '<br>' },
+        { id: 'Conclusão', prefix: '<br><br><br><br><span class="bold">Conclusão:</span><br><br>', suffix: '<br>' },
+		{ id: 'obs', prefix: '<br>Observação: ', suffix: '<br>' },
+        { id: 'Outros', prefix: '', suffix: '<br><br>' }
+    ];
+
+    let preparoText = '';
+    $(`#Preparo input[type='checkbox']:checked`).each(function() {
+        preparoText += `${$(this).val()}`;
+    });
+
+    for (const section of sections) {
+        let sectionText = '';
+        $(`#${section.id} input[type='checkbox']:checked`).each(function() {
+            sectionText += `${$(this).val()}${section.suffix}`;
+        });
+        if (sectionText) {
+            text += `${section.prefix}${sectionText}`;
+        }
+    }
+
+    if (preparoText) {
+        text = text.replace("Preparo adequado para o exame (Boston 9).", preparoText);
+    }
+
+if (text.includes("no ceco") || text.includes("em ceco") || text.includes("- ceco")) {
+    text = text.replace("Ceco, válvula ileocecal e óstio apendicular", "Válvula ileocecal e óstio apendicular");
+}
+  
+  // Check for "Preparo regular" and replace the specified text
+    if (text.includes("Preparo regular")) {
+        text = text.replace("com trama vascular e mucosa de aspecto normal.", "sem lesões visíveis.");
+    }
+	
+	if (text.includes("Introdução do colonoscópio pelo canal anal até o cólon descendente.")) {
+	text = text.replace(`<span class='bold'>COLONOSCOPIA</span><br><br><br><br>`, `<span class='bold'>RETOSSIGMOIDOSCOPIA</span><br><br><br><br>`);
+	}
+
+    if ($("#Outros input[type='checkbox']:checked").length > 0) {
+        text = text.replace("<span class='bold'>COLONOSCOPIA</span><br><br><br><br>", "");
+    }
+	
+    let canalanalText = '';
+    $(`#canalanal input[type='checkbox']:checked`).each(function() {
+        canalanalText += `${$(this).val()}`;
+    });
+
+    if (canalanalText.length > 0) {
+        text = text.replace(/Reto sem alterações./g, "");
+    }
+
+    $("#output").html(text);
+    const outputElement = document.getElementById("output");
+    outputElement.focus();
+    document.execCommand("selectAll");
+    document.execCommand("copy");
+    window.getSelection().removeAllRanges();
+}
+</script>
+
+<script>
+const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+checkboxes.forEach(function(checkbox) {
+  checkbox.addEventListener('click', function() {
+    const checked = this.checked;
+    const name = this.name;
+    const matchingCheckboxes = document.querySelectorAll('input[type="checkbox"][name="' + name + '"]');
+    matchingCheckboxes.forEach(function(matchingCheckbox) {
+      if (matchingCheckbox !== checkbox) {
+        matchingCheckbox.checked = checked;
+      }
+    });
+  });
+});
+</script>
+
+<script>//limpar seleção
+function uncheckAll() {
+  var checkboxes = document.querySelectorAll('input[type="checkbox"]');
+  for (var i = 0; i < checkboxes.length; i++) {
+    checkboxes[i].checked = false;
+  }
+}
+</script>
+
+  <footer>
+    <style="font-size: 10px"=""><br>Gerador de Laudo de Colononoscopia (2024) - Eduardo K. M. Ogawa.
+  </style="font-size:>
+  </footer>
+
+</main></body></html>
