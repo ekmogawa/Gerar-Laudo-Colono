@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerar Laudo Colono</title>
+
+  <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.0/themes/smoothness/jquery-ui.css">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://code.jquery.com/ui/1.13.0/jquery-ui.min.js"></script>
+
+  <!-- Funções — carregado via jsDelivr (serve com MIME type correto) -->
+  <script src="https://cdn.jsdelivr.net/gh/ekmogawa/Gerar-Laudo-Colono@main/funcoes_colono.js"></script>
+
+  <style>
+    body {
+      background-color: #daecd9;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+    }
+    input[type=checkbox] { width: 15px; height: 15px; }
+
+    /* Listas sortable */
+    #sortable-indicacao, #sortable-equipamento, #sortable-sedacao,
+    #sortable-preparo, #sortable-exame, #sortable-alteracao,
+    #sortable-diverticulo, #sortable-canalanal, #sortable-conclusao,
+    #sortable-obs, #sortable-outros {
+      list-style-type: none; margin: 0; padding: 0;
+    }
+    #sortable-indicacao .item, #sortable-equipamento .item, #sortable-sedacao .item,
+    #sortable-preparo .item, #sortable-exame .item, #sortable-alteracao .item,
+    #sortable-diverticulo .item, #sortable-canalanal .item, #sortable-conclusao .item,
+    #sortable-obs .item, #sortable-outros .item {
+      display: inline-block; margin-right: 3px; margin-bottom: 5px;
+      border: 1px solid #ccc; padding: 5px;
+    }
+
+    /* Popup genérico */
+    .popup {
+      position: fixed; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 1000px; height: 500px;
+      background-color: #D3D3D3;
+      border: 1px solid #000; padding: 20px;
+      display: none; z-index: 9999;
+    }
+    #checkbox-list { height: 350px; overflow: auto; }
+
+    /* Tela de login */
+    #tela-login {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 99999;
+    }
+    #tela-login .caixa {
+      background: #fff;
+      border-radius: 10px;
+      padding: 40px 50px;
+      text-align: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      min-width: 320px;
+    }
+    #tela-login h2 {
+      font-size: 20px; font-weight: bold;
+      margin-bottom: 20px; display: block;
+    }
+    #tela-login select {
+      font-size: 16px; padding: 8px 12px;
+      width: 100%; margin-bottom: 20px;
+      border-radius: 5px; border: 1px solid #ccc;
+    }
+    #tela-login button {
+      font-size: 15px; font-weight: bold;
+      padding: 10px 30px; cursor: pointer;
+      background: #4a7c59; color: white;
+      border: none; border-radius: 5px;
+    }
+    #tela-login button:hover { background: #3a6147; }
+    #usuario-ativo {
+      font-size: 12px; color: #555;
+      margin-left: 10px;
+    }
+
+    /* Tipografia */
+    h2 { font-size: 14px; font-weight: bold; font-family: Arial; display: inline; }
+    h3 { font-size: 18px; font-weight: bold; font-family: Arial; display: inline; }
+    h4 { font-size: 14px; font-weight: bold; }
+    .bold { font-weight: bold; }
+    .flex-container { display: flex; align-items: center; }
+
+    /* Área de saída */
+    .my-textarea {
+      font-family: Arial, sans-serif; font-size: 16px;
+      width: 75%; height: 300px;
+      border-radius: 5px; border: 1px solid #ccc;
+      padding: 10px; background: white;
+      overflow: auto; white-space: pre-wrap; line-height: 1.5;
+    }
+  </style>
+</head>
+
+<body>
+
+<!-- Tela de seleção de usuário -->
+<div id="tela-login">
+  <div class="caixa">
+    <h2>Gerar Laudo Colonoscopia</h2>
+    <p style="margin-bottom:16px;color:#555;">Selecione seu usuário:</p>
+    <select id="select-usuario">
+      <option value="">— selecione —</option>
+    </select>
+    <br>
+    <button onclick="confirmarUsuario()">Entrar</button>
+  </div>
+</div>
+
+<!-- Conteúdo principal (oculto até login) -->
+<div id="conteudo-principal" style="display:none;">
+
+<h3>COLONOSCOPIA<br><br></h3>
+
+<!-- Barra de ações -->
+<button onclick="salvarDados()" style="font-size:14px;font-weight:Bold;padding:10px;">💾 Salvar meu banco de dados</button>
+<span id="usuario-ativo"></span>
+<button onclick="trocarUsuario()" style="font-size:12px;padding:6px 10px;margin-left:10px;">Trocar usuário</button>
+<br><br>
+
+<button style="font-size:14px;font-weight:Bold;padding:10px;" onclick="uncheckAll()">Limpar Seleção</button>
+<button style="font-size:14px;font-weight:Bold;padding:10px;" onclick="showPopup()">Editar Item</button>
+<button style="font-size:14px;font-weight:Bold;padding:10px;" onclick="deleteCheckedCheckboxes()">Excluir Item</button>
+<button style="font-size:14px;font-weight:bold;padding:10px;" onclick="showCreatePopup()">Criar Item</button>
+
+<!-- Popup Editar -->
+<div class="popup" id="popup">
+  <h3>Editar Item</h3>
+  <div id="checkbox-list"></div><br><br>
+  <button style="font-size:16px;font-weight:Bold;padding:12px;" onclick="hidePopup()">Fechar</button>
+  <button style="font-size:16px;font-weight:Bold;padding:12px;" onclick="deleteCheckedCheckboxes()">Excluir Item</button>
+</div>
+
+<!-- Popup Criar -->
+<div class="popup" id="create-popup">
+  <h3>Criar novo item</h3>
+  <label for="section-select"><span class="bold" style="font-size:16px;"><br><br><br>Selecionar a seção:</span></label>
+  <select id="section-select">
+    <option value="sortable-indicacao">Indicação</option>
+    <option value="sortable-equipamento">Equipamento</option>
+    <option value="sortable-sedacao">Sedação</option>
+    <option value="sortable-preparo">Preparo</option>
+    <option value="sortable-exame">Exame</option>
+    <option value="sortable-alteracao">Alteração</option>
+    <option value="sortable-diverticulo">Divertículos</option>
+    <option value="sortable-canalanal">Canal Anal</option>
+    <option value="sortable-conclusao">Conclusão</option>
+    <option value="sortable-obs">Observação</option>
+    <option value="sortable-outros">Outros</option>
+  </select>
+  <label for="checkbox-name"><br><br><strong>Nome do item:</strong></label><br><br>
+  <textarea id="checkbox-name"></textarea>
+  <label for="checkbox-value"><br><br><strong>Texto:</strong></label><br><br>
+  <textarea style="height:150px;width:800px;" id="checkbox-value"></textarea><br><br><br>
+  <button style="font-size:14px;font-weight:bold;padding:10px;" onclick="createCheckbox()">Criar</button>
+  <button style="font-size:14px;font-weight:bold;padding:10px;" onclick="hideCreatePopup()">Cancelar</button>
+</div>
+
+<main>
+<br><hr>
+
+<!-- INDICAÇÃO -->
+<section id="indicacao" class="flex-container">
+  <span class="bold" style="font-size:20px;">Indicação:&nbsp; </span>
+  <div id="sortable-indicacao" class="ui-sortable"></div>
+</section><br><hr>
+
+<!-- EQUIPAMENTO -->
+<section id="Equipamento" class="flex-container">
+  <span class="bold" style="font-size:20px;">Equipamento:&nbsp; </span>
+  <div id="sortable-equipamento" class="ui-sortable"></div>
+</section><hr>
+
+<!-- SEDAÇÃO -->
+<section id="Sedação" class="flex-container">
+  <span class="bold" style="font-size:20px;">Sedação:&nbsp; </span>
+  <div id="sortable-sedacao" class="ui-sortable">
+    <div class="item ui-sortable-handle">
+      <input type="checkbox" id="sedacao-dinamico" name="sedacao-dinamico" value="">
+      <span>&nbsp;Fentanil&nbsp;</span><select id="fentanil"></select>
+      <span>&nbsp;+ Midazolam&nbsp;</span><select id="midazolam"></select>
+      <span>&nbsp;+ Propofol titulado&nbsp;</span>
+      <button style="font-size:14px;font-weight:bold;padding:10px;" onclick="addParametersedacao()">Adicionar checkbox</button>
+    </div>
+  </div>
+</section><hr>
+
+<!-- PREPARO -->
+<section id="Preparo" class="flex-container">
+  <span class="bold" style="font-size:20px;">Preparo:&nbsp; </span>
+  <div id="sortable-preparo" class="ui-sortable"></div>
+</section><hr>
+
+<!-- EXAME -->
+<section id="Exame" class="flex-container">
+  <span class="bold" style="font-size:20px;">Exame:&nbsp; </span>
+  <div id="sortable-exame" class="ui-sortable"></div>
+</section><hr>
+
+<!-- LESÕES -->
+<section id="alteracao" class="flex-container">
+  <span class="bold" style="font-size:20px;">Lesões:&nbsp;</span>
+  <div class="item ui-sortable-handle ui-sortable" id="sortable-alteracao">
+    <div class="item ui-sortable-handle">
+      <input type="checkbox" id="polipos" name="polipos" value="">
+      <select id="segmento" style="display:none;"><option value="1">1</option><option value="2">&gt;1</option></select>
+      <span>&nbsp;Local:&nbsp;</span>     <select id="localizacao"></select>
+      <span>&nbsp;Paris:&nbsp;</span>     <select id="lesao"></select>
+      <span>&nbsp;Nº:&nbsp;</span>        <select id="numero"></select>
+      <span>&nbsp;Tamanho:&nbsp;</span>   <select id="tamanho"></select>
+      <span>&nbsp; a &nbsp;</span>        <select id="atetamanho"></select>
+      <span>&nbsp;Kudo:&nbsp;</span>      <select id="kudo"></select>
+      <span>&nbsp;Vasc:&nbsp;</span>      <select id="vasc"></select>
+      <span>&nbsp;JNET:&nbsp;</span>      <select id="jnet"></select>
+      <span>&nbsp;Ressecção:&nbsp;</span> <select id="resseccao"></select>
+      <span>&nbsp; e &nbsp;</span>        <select id="resseccao3"></select>
+      <span>&nbsp;Hemostasia:&nbsp;</span><select id="hemostasia"></select>
+      <button style="font-size:14px;font-weight:bold;padding:10px;" onclick="addParameter()">Adicionar checkbox</button>
+    </div>
+  </div>
+</section><hr>
+
+<!-- DIVERTÍCULOS -->
+<section id="diverticulo" class="flex-container">
+  <span class="bold" style="font-size:20px;">Divertículos:&nbsp;</span>
+  <div class="item ui-sortable-handle" id="sortable-diverticulo">
+    <div class="item ui-sortable-handle">
+      <input type="checkbox" id="diver-sortable" name="diver-sortable" value="">
+      <select id="diver-segmento" style="display:none;">
+        <option value="1">1</option><option value="2">&gt;1</option>
+        <option value="3">div e lesão no mesmo segmento</option>
+      </select>
+      <label for="diver-sortable" contenteditable="true">Local:&nbsp;</label>
+      <select id="diver-local"></select>
+      <span>&nbsp;e&nbsp;</span><select id="diver-local2"></select>
+      <span>&nbsp;&nbsp;Frequência:&nbsp;</span><select id="diver-freq"></select>
+      <button style="font-size:14px;font-weight:bold;padding:10px;" onclick="addParameterdiv()">Adicionar checkbox</button>
+    </div>
+  </div>
+</section><hr>
+
+<!-- CANAL ANAL -->
+<section id="canalanal" class="flex-container">
+  <span class="bold" style="font-size:20px;">Canal anal:&nbsp;</span>
+  <div class="item ui-sortable-handle ui-sortable" id="sortable-canalanal">
+    <div class="item ui-sortable-handle">
+      <input type="checkbox" id="canal-sortable" name="canal-sortable" value="">
+      <select id="canal-segmento" style="display:none;"><option value="1">1</option><option value="2">&gt;1</option></select>
+      <label for="canal-sortable" contenteditable="true">Alteração:&nbsp;</label>
+      <select id="alt-anal"></select>
+      <span>&nbsp;Local&nbsp;</span><select id="local-anal"></select>
+      <button style="font-size:14px;font-weight:bold;padding:10px;" onclick="addParametercanal()">Adicionar checkbox</button>
+    </div>
+  </div>
+</section><hr>
+
+<!-- CONCLUSÃO -->
+<section id="Conclusão" class="flex-container">
+  <span class="bold" style="font-size:20px;">Conclusão:&nbsp;</span>
+  <div id="sortable-conclusao" class="ui-sortable">
+    <br>
+    <div class="item ui-sortable-handle">
+      <input type="text" name="alteracao-conc" value="" id="alteracao-conc-sortable-conclusao">
+      <label for="alteracao-conc-sortable-conclusao" contenteditable="true">Simples&nbsp; </label>
+      <select id="numero-conc"></select>
+      <select id="lesao-conc"></select>
+      <select id="local-conc"></select>
+      <select id="resseccao-conc"></select>
+      <button style="font-size:14px;font-weight:bold;padding:10px;" onclick="addConclusaoCheckbox()">Adicionar checkbox</button>
+    </div>
+    <br>
+    <div class="item ui-sortable-handle">
+      <input type="text" name="alteracoes-conc" value="" id="alteracoes-conc-sortable-conclusao">
+      <label for="alteracoes-conc-sortable-conclusao" contenteditable="true">Composto&nbsp; </label>
+      <select id="lesao2-conc"></select>
+      <span>&nbsp;&nbsp;Ceco:&nbsp;</span>    <select id="numeroceco-conc"></select>
+      <span>&nbsp;&nbsp;Asc:&nbsp;</span>     <select id="numeroasc-conc"></select>
+      <span>&nbsp;&nbsp;Ang hep:&nbsp;</span> <select id="numeroanghep-conc"></select>
+      <span>&nbsp;&nbsp;Transv:&nbsp;</span>  <select id="numerotransv-conc"></select>
+      <span>&nbsp;&nbsp;Ang esp:&nbsp;</span> <select id="numeroangesp-conc"></select>
+      <span>&nbsp;&nbsp;Desc:&nbsp;</span>    <select id="numerodesc-conc"></select>
+      <span>&nbsp;&nbsp;Sig:&nbsp;</span>     <select id="numerosig-conc"></select>
+      <span>&nbsp;&nbsp;Reto:&nbsp;</span>    <select id="numeroreto-conc"></select>
+      <span>&nbsp;&nbsp;Ressecção:&nbsp;</span><select id="resseccao2-conc"></select>
+      <button style="font-size:14px;font-weight:bold;padding:10px;" onclick="addConclusao2Checkbox()">Adicionar checkbox</button>
+    </div>
+  </div>
+</section>
+
+<!-- OBSERVAÇÃO -->
+<section id="obs" class="flex-container">
+  <span class="bold" style="font-size:20px;">Observação:&nbsp;</span>
+  <div id="sortable-obs" class="ui-sortable"></div>
+</section><hr>
+
+<!-- OUTROS -->
+<section id="Outros" class="flex-container">
+  <span class="bold" style="font-size:20px;">Outros:&nbsp;</span>
+  <div id="sortable-outros" class="ui-sortable"></div>
+</section><hr>
+
+<!-- Botões de ação -->
+<button style="font-size:14px;font-weight:Bold;padding:10px;" onclick="generateText()">Gerar e Copiar Laudo</button>
+<button style="font-size:14px;font-weight:Bold;padding:10px;" onclick="uncheckAll()">Limpar Seleção</button>
+<button style="font-size:14px;font-weight:Bold;padding:10px;" onclick="copiarConteudo()">Copiar Texto</button>
+<button style="font-size:14px;font-weight:Bold;padding:10px;" onclick="copiarFormatado()">Copiar Fonte 11</button>
+<br><br>
+
+<div class="my-textarea" id="output" contenteditable="true"></div>
+
+</main>
+
+</div><!-- /conteudo-principal -->
+
+<footer><br>Gerador de Laudo de Colonoscopia (2026) - Eduardo K. M. Ogawa.</footer>
+
+</body>
+</html>
