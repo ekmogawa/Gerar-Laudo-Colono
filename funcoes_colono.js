@@ -648,11 +648,6 @@ async function inicializarTokenGitHub() {
   atualizarStatusGitHub();
 }
 
-function githubConfigurado() {
-  const c = lerConfigGitHub();
-  return !!(c.token && c.owner && c.repo);
-}
-
 function showConfigPopup() {
   const c = lerConfigGitHub();
   document.getElementById('cfg-token').value = c.token || '';
