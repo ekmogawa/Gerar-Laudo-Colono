@@ -39,11 +39,15 @@ function getSelectedOptionExtra(sel) {
   return sel.options[sel.selectedIndex].getAttribute('data-extra');
 }
 
+var _contadorDinamico = 0;
+
 function createCheckboxDiv(text, name) {
   var div = document.createElement('div');
   div.className = 'item ui-sortable-handle';
   div.style.display = 'block';
-  div.innerHTML = '<input type="checkbox" name="' + name + '" value="' + text + '" checked><label>' + text + '</label>';
+  // Nome único para não ser sincronizado com outros checkboxes da mesma seção
+  var nomeUnico = name + '_d' + (++_contadorDinamico);
+  div.innerHTML = '<input type="checkbox" name="' + nomeUnico + '" value="' + text + '" checked><label>' + text + '</label>';
   return div;
 }
 
@@ -562,7 +566,7 @@ function atualizarStatusGitHub() {
       el.textContent = '✅ GitHub: ' + c.owner + '/' + c.repo + ' (🔓 ativo)';
       el.style.color = '#2a6e3f';
     } else {
-      el.textContent = '🔒 GitHub: ' + c.owner + '/' + c.repo + ' (password necessário)';
+      el.textContent = '🔒 GitHub: ' + c.owner + '/' + c.repo + ' (sessão inativa — recarregue)';
       el.style.color = '#a04000';
     }
   } else if (c.token) {
