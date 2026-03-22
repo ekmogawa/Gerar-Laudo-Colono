@@ -565,7 +565,7 @@ function atualizarStatusGitHub() {
       el.textContent = '✅ GitHub: ' + c.owner + '/' + c.repo + ' (🔓 ativo)';
       el.style.color = 'rgba(255,255,255,.88)';
     } else {
-      el.textContent = '🔒 GitHub: ' + c.owner + '/' + c.repo + ' (sessão inativa — recarregue)';
+      el.textContent = '🔒 GitHub: ' + c.owner + '/' + c.repo + ' (password necessário para salvar)';
       el.style.color = 'rgba(255,255,255,.62)';
     }
   } else if (c.token) {
