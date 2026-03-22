@@ -1,6 +1,6 @@
 // ============================================================
 // BANCO DE DADOS — Gerar Laudo Colonoscopia
-// Salvo em: 22/03/2026, 02:28:46
+// Salvo em: 22/03/2026, 11:39:06
 // ============================================================
 
 const DB_PADRAO = {
@@ -184,7 +184,7 @@ const DB_PADRAO = {
       "valor": "Toque retal sem alterações.<br>Introdução do colonoscópio pelo canal anal até o íleo terminal, que não apresenta alterações em seus 5 cm distais. <br>Preparo adequado para o exame.<br>Ceco, válvula ileocecal e óstio apendicular sem alterações.<br>Cólons ascendente, transverso e descendente com trama vascular e mucosa de aspecto normal.<br>Ausência de cólon sigmoide.<br>A cerca de 10cm da borda anal, encontra-se anastomose colorretal ampla e sem lesões associadas.<br>Reto remanescente sem alterações.<br>"
     },
     {
-      "nome": "Retossigmoidect Hartmann + retite de desuso",
+      "nome": "Hartmann + retite de desuso",
       "valor": "Toque retal sem alterações.<br>Introdução do colonoscópio pelo canal anal, observando-se reto com mucosa friável e sem lesões. Fundo cego a cerca de 8cm do canal a anal.<br>Preparo adequado para o exame.<br><br>Introdução do colonoscópio por colostomia terminal, localizada em flanco esquerdo, até o íleo terminal, que não apresenta alterações em seus 5 cm distais.<br>Ceco, válvula ileocecal e óstio apendicular sem alterações.<br>A mucosa do cólon remanescente apresenta aspecto preservado.<br>"
     }
   ],
@@ -734,7 +734,7 @@ const DB_PADRAO = {
       "valor": "- Status pós-operatório de retossigmoidectomia com reconstrução de trânsito intestinal."
     },
     {
-      "nome": "Retossigmoidect Hartmann + retite de desuso",
+      "nome": "Hartmann + retite de desuso",
       "valor": "- Status pós-operatório de retossigmoidectomia à Hartmann.<br>- Retite de desuso."
     }
   ],
