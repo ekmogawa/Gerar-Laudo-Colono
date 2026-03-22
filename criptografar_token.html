@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <title>Criptografar Token GitHub</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 20px; background: #f0f7f0; }
+    h2 { color: #2a5a3a; }
+    label { display: block; margin-top: 16px; font-weight: bold; font-size: 14px; }
+    input, textarea {
+      width: 100%; margin-top: 6px; padding: 8px 10px;
+      font-size: 14px; border: 1px solid #aaa; border-radius: 5px;
+      box-sizing: border-box;
+    }
+    button {
+      margin-top: 20px; padding: 10px 22px; font-size: 15px; font-weight: bold;
+      background: #2a5a3a; color: white; border: none; border-radius: 6px; cursor: pointer;
+    }
+    button:hover { background: #1e4229; }
+    #resultado {
+      display: none; margin-top: 24px; padding: 16px;
+      background: #fff; border: 1px solid #aaa; border-radius: 6px;
+    }
+    #resultado h3 { margin: 0 0 10px; color: #2a5a3a; font-size: 15px; }
+    #resultado textarea { height: 180px; font-family: monospace; font-size: 12px; background: #f8fff8; }
+    .copy-btn {
+      margin-top: 8px; padding: 6px 14px; font-size: 13px;
+      background: #4a7a5a; color: white; border: none; border-radius: 4px; cursor: pointer;
+    }
+    .aviso { background: #fff3cd; border: 1px solid #f0c040; border-radius: 5px; padding: 10px 14px; margin-top: 16px; font-size: 13px; }
+  </style>
+</head>
+<body>
+<h2>🔐 Criptografar Token GitHub</h2>
+<p style="font-size:14px;color:#444;">
+  Esta ferramenta criptografa seu token com uma senha de sua escolha.<br>
+  O resultado pode ser colocado em um repositório público com segurança.
+</p>
+
+<div class="aviso">
+  ⚠️ Execute esta página <strong>localmente</strong> (abra o arquivo no browser, sem servidor).
+  Nenhum dado é enviado para a internet.
+</div>
+
+<label>Token GitHub (ghp_...):</label>
+<input type="password" id="token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off">
+
+<label>Senha de descriptografia:</label>
+<input type="password" id="senha" placeholder="Escolha uma senha forte" autocomplete="new-password">
+
+<label>Confirmar senha:</label>
+<input type="password" id="senha2" placeholder="Repita a senha" autocomplete="new-password">
+
+<button onclick="criptografar()">🔒 Criptografar</button>
+
+<div id="resultado">
+  <h3>✅ Cole este conteúdo no seu <code>config.js</code>:</h3>
+  <textarea id="output" readonly></textarea>
+  <br>
+  <button class="copy-btn" onclick="copiar()">📋 Copiar</button>
+  <p style="font-size:12px;color:#666;margin-top:10px;">
+    Guarde sua senha em local seguro — ela será pedida ao abrir o programa.<br>
+    Sem a senha, o token não pode ser recuperado.
+  </p>
+</div>
+
+<script>
+async function criptografar() {
+  const token = document.getElementById('token').value.trim();
+  const senha = document.getElementById('senha').value;
+  const senha2 = document.getElementById('senha2').value;
+
+  if (!token || !token.startsWith('ghp_')) {
+    alert('Token inválido. Deve começar com ghp_'); return;
+  }
+  if (!senha || senha.length < 6) {
+    alert('Senha deve ter ao menos 6 caracteres.'); return;
+  }
+  if (senha !== senha2) {
+    alert('As senhas não coincidem.'); return;
+  }
+
+  // Gera salt e IV aleatórios
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv   = crypto.getRandomValues(new Uint8Array(12));
+
+  // Deriva chave AES-GCM a partir da senha com PBKDF2
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw', new TextEncoder().encode(senha),
+    'PBKDF2', false, ['deriveKey']
+  );
+  const key = await crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: 200000, hash: 'SHA-256' },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false, ['encrypt']
+  );
+
+  // Criptografa o token
+  const cifrado = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    new TextEncoder().encode(token)
+  );
+
+  // Converte para base64
+  const toB64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+  const saltB64  = toB64(salt);
+  const ivB64    = toB64(iv);
+  const cifB64   = toB64(cifrado);
+
+  const output =
+`// ============================================================
+// CONFIGURAÇÃO — Gerar Laudo Colonoscopia
+// O token está criptografado com AES-256-GCM + PBKDF2.
+// Repositório pode ser público — sem a senha o token é inútil.
+// ============================================================
+
+const GITHUB_CONFIG = {
+  owner:  'ekmogawa',
+  repo:   'Gerar-Laudo-Colono',
+  branch: 'main',
+  path:   'dados_colono.js',
+
+  // Token criptografado — NÃO edite estes valores manualmente
+  tokenCriptografado: '${cifB64}',
+  salt: '${saltB64}',
+  iv:   '${ivB64}',
+};
+`;
+
+  document.getElementById('output').value = output;
+  document.getElementById('resultado').style.display = 'block';
+}
+
+function copiar() {
+  const ta = document.getElementById('output');
+  ta.select();
+  document.execCommand('copy');
+  alert('Copiado!');
+}
+</script>
+</body>
+</html>
