@@ -1,6 +1,6 @@
 // ============================================================
 // BANCO DE DADOS — Gerar Laudo Colonoscopia
-// Salvo em: 22/03/2026, 00:29:44
+// Salvo em: 22/03/2026, 00:31:02
 // Para adicionar/remover/editar itens, edite apenas este arquivo.
 // ATENÇÃO: este arquivo define o banco PADRÃO (DB_PADRAO).
 // As alterações feitas pela interface ficam salvas no navegador
