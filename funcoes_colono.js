@@ -43,9 +43,8 @@ var _contadorDinamico = 0;
 
 function createCheckboxDiv(text, name) {
   var div = document.createElement('div');
-  div.className = 'item ui-sortable-handle';
+  div.className = 'item item-dinamico ui-sortable-handle';
   div.style.display = 'block';
-  // Nome único para não ser sincronizado com outros checkboxes da mesma seção
   var nomeUnico = name + '_d' + (++_contadorDinamico);
   div.innerHTML = '<input type="checkbox" name="' + nomeUnico + '" value="' + text + '" checked><label>' + text + '</label>';
   return div;
@@ -558,23 +557,23 @@ function atualizarStatusGitHub() {
   var c = lerConfigGitHub();
   if (!c.owner) {
     el.textContent = '⚠️ config.js não configurado';
-    el.style.color = '#a04000';
+    el.style.color = 'rgba(255,255,255,.55)';
     return;
   }
   if (c.tokenCriptografado) {
     if (sessionStorage.getItem('colono_github_token')) {
       el.textContent = '✅ GitHub: ' + c.owner + '/' + c.repo + ' (🔓 ativo)';
-      el.style.color = '#2a6e3f';
+      el.style.color = 'rgba(255,255,255,.88)';
     } else {
       el.textContent = '🔒 GitHub: ' + c.owner + '/' + c.repo + ' (sessão inativa — recarregue)';
-      el.style.color = '#a04000';
+      el.style.color = 'rgba(255,255,255,.62)';
     }
   } else if (c.token) {
     el.textContent = '✅ GitHub: ' + c.owner + '/' + c.repo;
-    el.style.color = '#2a6e3f';
+    el.style.color = 'rgba(255,255,255,.88)';
   } else {
     el.textContent = '⚠️ Token não configurado em config.js';
-    el.style.color = '#a04000';
+    el.style.color = 'rgba(255,255,255,.55)';
   }
 }
 
