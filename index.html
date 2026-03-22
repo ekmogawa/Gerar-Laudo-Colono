@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerar Laudo Colonoscopia</title>
+  <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.0/themes/smoothness/jquery-ui.css">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://code.jquery.com/ui/1.13.0/jquery-ui.min.js"></script>
+
+  <!-- ① Configuração (token GitHub, repositório) -->
+  <script src="config.js"></script>
+  <!-- ② Banco de dados padrão -->
+  <script src="dados_colono.js"></script>
+  <!-- ③ Funções (carrega DB do localStorage ou usa DB_PADRAO) -->
+  <script src="funcoes_colono.js"></script>
+
+  <style>
+    body {
+      background-color: #daecd9;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+    }
+    input[type=checkbox] { width: 15px; height: 15px; }
+
+    /* ── SORTABLE ── */
+    #sortable-indicacao, #sortable-equipamento, #sortable-sedacao,
+    #sortable-preparo, #sortable-exame, #sortable-alteracao,
+    #sortable-diverticulo, #sortable-canalanal, #sortable-conclusao,
+    #sortable-obs, #sortable-outros {
+      list-style-type: none; margin: 0; padding: 0;
+    }
+    #sortable-indicacao .item, #sortable-equipamento .item, #sortable-sedacao .item,
+    #sortable-preparo .item, #sortable-exame .item, #sortable-alteracao .item,
+    #sortable-diverticulo .item, #sortable-canalanal .item, #sortable-conclusao .item,
+    #sortable-obs .item, #sortable-outros .item {
+      display: inline-block; margin-right: 3px; margin-bottom: 5px;
+      border: 1px solid #ccc; padding: 5px;
+    }
+
+    /* ── POPUP ── */
+    .popup {
+      position: fixed; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 1000px; height: 500px;
+      background-color: #D3D3D3;
+      border: 1px solid #000; padding: 20px;
+      display: none; z-index: 9999;
+    }
+    #checkbox-list { height: 350px; overflow: auto; }
+
+    /* Config GitHub — dimensões próprias, sobrescreve .popup */
+    #config-popup {
+      width: min(96vw, 780px) !important;
+      height: auto !important;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    /* ── TIPOGRAFIA ── */
+    h2 { font-size: 14px; font-weight: bold; font-family: Arial; display: inline; }
+    h3 { font-size: 18px; font-weight: bold; font-family: Arial; display: inline; }
+    h4 { font-size: 14px; font-weight: bold; }
+    .bold { font-weight: bold; }
+    .flex-container { display: flex; align-items: center; }
+
+    /* ── SAÍDA ── */
+    .my-textarea {
+      font-family: Arial, sans-serif; font-size: 16px;
+      width: 75%; height: 300px;
+      border-radius: 5px; border: 1px solid #ccc;
+      padding: 10px; background: white;
+      overflow: auto; white-space: pre-wrap; line-height: 1.5;
+    }
+
+    /* ── INDICADOR DE STATUS ── */
+    #storage-info {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 12px; color: #445; margin-left: 12px; vertical-align: middle;
+    }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: #4caf50; display: inline-block; }
+    .dot.unsaved { background: #e67e22; }
+
+    /* ── TOAST ── */
+    #toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+      background: #1a3a1a; color: #c8f0c8;
+      padding: 9px 22px; border-radius: 22px;
+      font-size: 14px; font-weight: 600;
+      box-shadow: 0 4px 16px rgba(0,0,0,.28);
+      z-index: 99999;
+      transition: transform .3s ease, opacity .3s ease;
+      opacity: 0; pointer-events: none;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+  </style>
+</head>
+
+<body>
+<h3>COLONOSCOPIA<br><br></h3>
+
+<!-- ── TOOLBAR PRINCIPAL ── -->
+<button onclick="salvarDados()" style="font-size:14px;font-weight:Bold;padding:10px;">💾 Salvar</button>
+<button onclick="showConfigPopup()" style="font-size:14px;font-weight:bold;padding:10px;" title="Configurar salvamento no GitHub">⚙️ Config GitHub</button>
+<span id="github-status" style="font-size:12px;margin-left:8px;vertical-align:middle;"></span>
+<span id="storage-info">
+  &nbsp;|&nbsp;<span class="dot unsaved" id="storage-dot"></span>
+  <span id="storage-label">Verificando…</span>
+</span>
+<br><br>
+
+<button style="font-size:14px;font-weight:Bold;padding:10px;" onclick="uncheckAll()">Limpar Seleção</button>
+<button style="font-size:14px;font-weight:Bold;padding:10px;" onclick="showPopup()">Editar Item</button>
+<button style="font-size:14px;font-weight:Bold;padding:10px;" onclick="deleteCheckedCheckboxes()">Excluir Item</button>
+<button style="font-size:14px;font-weight:bold;padding:10px;" onclick="showCreatePopup()">Criar Item</button>
+<button style="font-size:14px;font-weight:bold;padding:10px;" onclick="exportarJS()" title="Baixar dados_colono.js como backup local">⬇️ Exportar dados_colono.js</button>
+<button style="font-size:14px;font-weight:bold;padding:10px;" onclick="restaurarPadrao()" title="Apaga alterações salvas e usa o dados_colono.js original">↩️ Restaurar padrão</button>
+
+<!-- ── TOAST ── -->
+<div id="toast"></div>
+
+<!-- ── POPUP CONFIGURAÇÃO GITHUB ── -->
+<div class="popup" id="config-popup">
+  <h3>⚙️ Configuração do GitHub</h3><br><br>
+
+  <p style="font-size:13px;color:#444;max-width:700px;line-height:1.5;">
+    Ao salvar, o arquivo <strong>dados_colono.js</strong> será atualizado diretamente no seu repositório via API do GitHub.
+    O token fica guardado <em>apenas no seu navegador</em> (localStorage) e nunca é enviado a terceiros.
+  </p>
+
+  <table style="border-spacing:6px 10px;font-size:14px;">
+    <tr>
+      <td><strong>Token (PAT):</strong></td>
+      <td>
+        <input type="password" id="cfg-token" style="width:380px;padding:5px 8px;font-size:13px;border:1px solid #aaa;border-radius:4px;"
+               placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+        &nbsp;<a href="https://github.com/settings/tokens/new?scopes=repo&description=Laudo+Colono" target="_blank"
+             style="font-size:12px;">Gerar token →</a>
+      </td>
+    </tr>
+    <tr>
+      <td><strong>Usuário GitHub:</strong></td>
+      <td><input type="text" id="cfg-owner" style="width:220px;padding:5px 8px;font-size:13px;border:1px solid #aaa;border-radius:4px;"
+                 placeholder="seu-usuario"></td>
+    </tr>
+    <tr>
+      <td><strong>Repositório:</strong></td>
+      <td><input type="text" id="cfg-repo" style="width:220px;padding:5px 8px;font-size:13px;border:1px solid #aaa;border-radius:4px;"
+                 placeholder="laudo-colono"></td>
+    </tr>
+    <tr>
+      <td><strong>Branch:</strong></td>
+      <td><input type="text" id="cfg-branch" style="width:120px;padding:5px 8px;font-size:13px;border:1px solid #aaa;border-radius:4px;"
+                 placeholder="main"></td>
+    </tr>
+    <tr>
+      <td><strong>Caminho do arquivo:</strong></td>
+      <td><input type="text" id="cfg-path" style="width:220px;padding:5px 8px;font-size:13px;border:1px solid #aaa;border-radius:4px;"
+                 placeholder="dados_colono.js"></td>
+    </tr>
+  </table>
+
+  <br>
+  <button style="font-size:14px;font-weight:bold;padding:10px;" onclick="salvarConfigGitHub()">✅ Salvar configuração</button>
+  <button style="font-size:14px;font-weight:bold;padding:10px;" onclick="hideConfigPopup()">Fechar</button>
+  <button style="font-size:14px;font-weight:bold;padding:10px;color:#900;" onclick="limparConfigGitHub()">🗑️ Remover configuração</button>
+
+  <br><br>
+  <details style="font-size:12px;color:#555;max-width:700px;">
+    <summary style="cursor:pointer;font-weight:bold;">Como gerar o token (passo a passo)</summary>
+    <ol style="line-height:1.8;margin-top:8px;">
+      <li>Clique em <strong>"Gerar token →"</strong> acima (abre o GitHub)</li>
+      <li>Em <em>Note</em>, dê um nome (ex: "Laudo Colono")</li>
+      <li>Em <em>Expiration</em>, escolha "No expiration" para uso permanente</li>
+      <li>Em <em>Select scopes</em>, marque apenas <strong>repo</strong></li>
+      <li>Clique em <strong>Generate token</strong></li>
+      <li>Copie o token gerado (começa com <code>ghp_</code>) e cole no campo acima</li>
+    </ol>
+    <p>⚠️ O token só é exibido uma vez pelo GitHub. Guarde-o em local seguro.</p>
+  </details>
+</div>
+
+<!-- ── POPUP EDITAR ── -->
+<div class="popup" id="popup">
+  <h3>Editar Item</h3>
+  <div id="checkbox-list"></div><br><br>
+  <button style="font-size:16px;font-weight:Bold;padding:12px;" onclick="hidePopup()">Fechar</button>
+  <button style="font-size:16px;font-weight:Bold;padding:12px;" onclick="deleteCheckedCheckboxes()">Excluir Item</button>
+</div>
+
+<!-- ── POPUP CRIAR ── -->
+<div class="popup" id="create-popup">
+  <h3>Criar novo item</h3>
+  <label for="section-select"><span class="bold" style="font-size:16px;"><br><br><br>Selecionar a seção:</span></label>
+  <select id="section-select">
+    <option value="sortable-indicacao">Indicação</option>
+    <option value="sortable-equipamento">Equipamento</option>
+    <option value="sortable-sedacao">Sedação</option>
+    <option value="sortable-preparo">Preparo</option>
+    <option value="sortable-exame">Exame</option>
+    <option value="sortable-alteracao">Alteração</option>
+    <option value="sortable-diverticulo">Divertículos</option>
+    <option value="sortable-canalanal">Canal Anal</option>
+    <option value="sortable-conclusao">Conclusão</option>
+    <option value="sortable-obs">Observação</option>
+    <option value="sortable-outros">Outros</option>
+  </select>
+  <label for="checkbox-name"><br><br><strong>Nome do item:</strong></label><br><br>
+  <textarea id="checkbox-name"></textarea>
+  <label for="checkbox-value"><br><br><strong>Texto:</strong></label><br><br>
+  <textarea style="height:150px;width:800px;" id="checkbox-value"></textarea><br><br><br>
+  <button style="font-size:14px;font-weight:bold;padding:10px;" onclick="createCheckbox()">Criar</button>
+  <button style="font-size:14px;font-weight:bold;padding:10px;" onclick="hideCreatePopup()">Cancelar</button>
+</div>
+
+<main>
+<br><hr>
+
+<!-- INDICAÇÃO -->
+<section id="indicacao" class="flex-container">
+  <span class="bold" style="font-size:20px;">Indicação:&nbsp; </span>
+  <div id="sortable-indicacao" class="ui-sortable"></div>
+</section>
+
+<br><hr>
+
+<!-- EQUIPAMENTO -->
+<section id="Equipamento" class="flex-container">
+  <span class="bold" style="font-size:20px;">Equipamento:&nbsp; </span>
+  <div id="sortable-equipamento" class="ui-sortable"></div>
+</section>
+
+<hr>
+
+<!-- SEDAÇÃO -->
+<section id="Sedação" class="flex-container">
+  <span class="bold" style="font-size:20px;">Sedação:&nbsp; </span>
+  <div id="sortable-sedacao" class="ui-sortable">
+    <div class="item ui-sortable-handle">
+      <input type="checkbox" id="sedacao-dinamico" name="sedacao-dinamico" value="">
+      <span>&nbsp;Fentanil&nbsp;</span>
+      <select id="fentanil"></select>
+      <span>&nbsp;+ Midazolam&nbsp;</span>
+      <select id="midazolam"></select>
+      <span>&nbsp;+ Propofol titulado&nbsp;</span>
+      <button style="font-size:14px;font-weight:bold;padding:10px;" onclick="addParametersedacao()">Adicionar checkbox</button>
+    </div>
+  </div>
+</section>
+
+<hr>
+
+<!-- PREPARO -->
+<section id="Preparo" class="flex-container">
+  <span class="bold" style="font-size:20px;">Preparo:&nbsp; </span>
+  <div id="sortable-preparo" class="ui-sortable"></div>
+</section>
+
+<hr>
+
+<!-- EXAME -->
+<section id="Exame" class="flex-container">
+  <span class="bold" style="font-size:20px;">Exame:&nbsp; </span>
+  <div id="sortable-exame" class="ui-sortable"></div>
+</section>
+
+<hr>
+
+<!-- LESÕES -->
+<section id="alteracao" class="flex-container">
+  <span class="bold" style="font-size:20px;">Lesões:&nbsp;</span>
+  <div class="item ui-sortable-handle ui-sortable" id="sortable-alteracao">
+    <div class="item ui-sortable-handle">
+      <select id="segmento" style="display:none;">
+        <option value="1">1</option>
+        <option value="2">&gt;1</option>
+      </select>
+      <span>&nbsp;Local:&nbsp;</span>    <select id="localizacao"></select>
+      <span>&nbsp;Paris:&nbsp;</span>    <select id="lesao"></select>
+      <span>&nbsp;Nº:&nbsp;</span>       <select id="numero"></select>
+      <span>&nbsp;Tamanho:&nbsp;</span>  <select id="tamanho"></select>
+      <span>&nbsp; a &nbsp;</span>       <select id="atetamanho"></select>
+      <span>&nbsp;Kudo:&nbsp;</span>     <select id="kudo"></select>
+      <span>&nbsp;Vasc:&nbsp;</span>     <select id="vasc"></select>
+      <span>&nbsp;JNET:&nbsp;</span>     <select id="jnet"></select>
+      <span>&nbsp;Ressecção:&nbsp;</span><select id="resseccao"></select>
+      <span>&nbsp; e &nbsp;</span>       <select id="resseccao3"></select>
+      <span>&nbsp;Hemostasia:&nbsp;</span><select id="hemostasia"></select>
+      <button style="font-size:14px;font-weight:bold;padding:10px;" onclick="addParameter()">Adicionar checkbox</button>
+    </div>
+  </div>
+</section>
+
+<hr>
+
+<!-- DIVERTÍCULOS -->
+<section id="diverticulo" class="flex-container">
+  <span class="bold" style="font-size:20px;">Divertículos:&nbsp;</span>
+  <div class="item ui-sortable-handle" id="sortable-diverticulo">
+    <div class="item ui-sortable-handle">
+      <select id="diver-segmento" style="display:none;">
+        <option value="1">1</option>
+        <option value="2">&gt;1</option>
+        <option value="3">div e lesão no mesmo segmento</option>
+      </select>
+      <label for="diver-sortable" contenteditable="true">Local:&nbsp;</label>
+      <select id="diver-local"></select>
+      <span>&nbsp;e&nbsp;</span>
+      <select id="diver-local2"></select>
+      <span>&nbsp;&nbsp;Frequência:&nbsp;</span>
+      <select id="diver-freq"></select>
+      <button style="font-size:14px;font-weight:bold;padding:10px;" onclick="addParameterdiv()">Adicionar checkbox</button>
+    </div>
+  </div>
+</section>
+
+<hr>
+
+<!-- CANAL ANAL -->
+<section id="canalanal" class="flex-container">
+  <span class="bold" style="font-size:20px;">Canal anal:&nbsp;</span>
+  <div class="item ui-sortable-handle ui-sortable" id="sortable-canalanal">
+    <div class="item ui-sortable-handle">
+      <select id="canal-segmento" style="display:none;">
+        <option value="1">1</option>
+        <option value="2">&gt;1</option>
+      </select>
+      <label for="canal-sortable" contenteditable="true">Alteração:&nbsp;</label>
+      <select id="alt-anal"></select>
+      <span>&nbsp;Local&nbsp;</span>
+      <select id="local-anal"></select>
+      <button style="font-size:14px;font-weight:bold;padding:10px;" onclick="addParametercanal()">Adicionar checkbox</button>
+    </div>
+  </div>
+</section>
+
+<hr>
+
+<!-- CONCLUSÃO -->
+<section id="Conclusão" class="flex-container">
+  <span class="bold" style="font-size:20px;">Conclusão:&nbsp;</span>
+  <div id="sortable-conclusao" class="ui-sortable">
+    <br>
+    <!-- Conclusão simples -->
+    <div class="item ui-sortable-handle">
+      <label for="alteracao-conc-sortable-conclusao" contenteditable="true">Simples&nbsp; </label>
+      <select id="numero-conc"></select>
+      <select id="lesao-conc"></select>
+      <select id="local-conc"></select>
+      <select id="resseccao-conc"></select>
+      <button style="font-size:14px;font-weight:bold;padding:10px;" onclick="addConclusaoCheckbox()">Adicionar checkbox</button>
+    </div>
+    <br>
+    <!-- Conclusão composta -->
+    <div class="item ui-sortable-handle">
+      <label for="alteracoes-conc-sortable-conclusao" contenteditable="true">Composto&nbsp; </label>
+      <select id="lesao2-conc"></select>
+      <span>&nbsp;&nbsp;Ceco:&nbsp;</span>    <select id="numeroceco-conc"></select>
+      <span>&nbsp;&nbsp;Asc:&nbsp;</span>     <select id="numeroasc-conc"></select>
+      <span>&nbsp;&nbsp;Ang hep:&nbsp;</span> <select id="numeroanghep-conc"></select>
+      <span>&nbsp;&nbsp;Transv:&nbsp;</span>  <select id="numerotransv-conc"></select>
+      <span>&nbsp;&nbsp;Ang esp:&nbsp;</span> <select id="numeroangesp-conc"></select>
+      <span>&nbsp;&nbsp;Desc:&nbsp;</span>    <select id="numerodesc-conc"></select>
+      <span>&nbsp;&nbsp;Sig:&nbsp;</span>     <select id="numerosig-conc"></select>
+      <span>&nbsp;&nbsp;Reto:&nbsp;</span>    <select id="numeroreto-conc"></select>
+      <span>&nbsp;&nbsp;Ressecção:&nbsp;</span><select id="resseccao2-conc"></select>
+      <button style="font-size:14px;font-weight:bold;padding:10px;" onclick="addConclusao2Checkbox()">Adicionar checkbox</button>
+    </div>
+    <br>
+  </div>
+</section>
+
+<!-- OBSERVAÇÃO -->
+<section id="obs" class="flex-container">
+  <span class="bold" style="font-size:20px;">Observação:&nbsp;</span>
+  <div id="sortable-obs" class="ui-sortable"></div>
+</section>
+
+<hr>
+
+<!-- OUTROS -->
+<section id="Outros" class="flex-container">
+  <span class="bold" style="font-size:20px;">Outros:&nbsp;</span>
+  <div id="sortable-outros" class="ui-sortable"></div>
+</section>
+
+<hr>
+
+<!-- BOTÕES DE SAÍDA -->
+<button style="font-size:14px;font-weight:Bold;padding:10px;" onclick="generateText()">Gerar e Copiar Laudo</button>
+<button style="font-size:14px;font-weight:Bold;padding:10px;" onclick="uncheckAll()">Limpar Seleção</button>
+<button style="font-size:14px;font-weight:Bold;padding:10px;" onclick="copiarConteudo()">Copiar Texto</button>
+<button style="font-size:14px;font-weight:Bold;padding:10px;" onclick="copiarFormatado()">Copiar Fonte 11</button>
+<br><br>
+
+<!-- ÁREA DE SAÍDA -->
+<div class="my-textarea" id="output" contenteditable="true"></div>
+
+</main>
+
+<footer>
+  <br>Gerador de Laudo de Colonoscopia (2026) - Eduardo K. M. Ogawa.
+</footer>
+
+</body>
+</html>
