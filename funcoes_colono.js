@@ -109,18 +109,21 @@ function popularSelect(id, opcoes) {
 function popularCheckboxSection(containerId, itens, nomeSortable) {
   var container = document.getElementById(containerId);
   if (!container) return;
-  container.innerHTML = ''; // limpa antes — evita duplicação em re-init
+  // Remove apenas itens adicionados por esta função — preserva HTML estático (ex: widget de sedação)
+  container.querySelectorAll('.item[data-populated]').forEach(function (el) { el.remove(); });
   itens.forEach(function (item) {
     if (item.separador) {
       var sep = document.createElement('div');
       sep.className = 'item';
       sep.setAttribute('data-sep', '1');
+      sep.setAttribute('data-populated', '1');
       sep.style.cssText = 'width:100%;height:0;border-top:1px solid var(--border2);margin:3px 0;padding:0;background:transparent;border-radius:0;box-shadow:none;cursor:default;pointer-events:none;flex-basis:100%;';
       container.appendChild(sep);
       return;
     }
     var div = document.createElement('div');
     div.className = 'item';
+    div.setAttribute('data-populated', '1');
     var id = item.id || (item.nome + '-' + nomeSortable);
     var valorEscapado = (item.valor || '')
       .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
