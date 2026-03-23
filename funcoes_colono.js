@@ -79,13 +79,14 @@ function pluralizar(texto) {
 // TOAST
 // ----------------------------------------------------------
 
-function mostrarToast(msg, cor) {
+function mostrarToast(msg, cor, duracao) {
   var t = document.getElementById('toast');
   if (!t) return;
   t.textContent = msg;
   t.style.background = cor || '#1a3a1a';
   t.classList.add('show');
-  setTimeout(function () { t.classList.remove('show'); }, 2800);
+  clearTimeout(t._timer);
+  t._timer = setTimeout(function () { t.classList.remove('show'); }, duracao || 3200);
 }
 
 // ----------------------------------------------------------
@@ -108,20 +109,32 @@ function popularSelect(id, opcoes) {
 function popularCheckboxSection(containerId, itens, nomeSortable) {
   var container = document.getElementById(containerId);
   if (!container) return;
+  container.innerHTML = ''; // limpa antes — evita duplicação em re-init
   itens.forEach(function (item) {
+    if (item.separador) {
+      var sep = document.createElement('div');
+      sep.className = 'item';
+      sep.setAttribute('data-sep', '1');
+      sep.style.cssText = 'width:100%;height:0;border-top:1px solid var(--border2);margin:3px 0;padding:0;background:transparent;border-radius:0;box-shadow:none;cursor:default;pointer-events:none;flex-basis:100%;';
+      container.appendChild(sep);
+      return;
+    }
     var div = document.createElement('div');
-    div.className = 'item ui-sortable-handle';
+    div.className = 'item';
     var id = item.id || (item.nome + '-' + nomeSortable);
     var valorEscapado = (item.valor || '')
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     div.innerHTML =
       '<input type="checkbox" name="' + item.nome + '" value="' + valorEscapado + '" id="' + id + '">' +
-      '<label for="' + id + '" contenteditable="true">' + item.nome + '</label>';
+      '<label for="' + id + '">' + item.nome + '</label>';
     container.appendChild(div);
   });
 }
 
 function inicializar() {
+  if (window._inicializado) return;
+  window._inicializado = true;
+
   popularCheckboxSection('sortable-indicacao',  _DB.indicacao,  'sortable-indicacao');
   popularCheckboxSection('sortable-equipamento',_DB.equipamento,'sortable-equipamento');
   popularCheckboxSection('sortable-sedacao',    _DB.sedacao,    'sortable-sedacao');
@@ -177,22 +190,173 @@ function inicializar() {
 }
 
 // ----------------------------------------------------------
-// DRAG & DROP
+// DRAG & DROP — Pointer Events (sem flickering)
 // ----------------------------------------------------------
 
 function inicializarSortable() {
-  ['#sortable-indicacao','#sortable-equipamento','#sortable-sedacao',
-   '#sortable-preparo','#sortable-exame','#sortable-alteracao',
-   '#sortable-canalanal','#sortable-conclusao','#sortable-obs','#sortable-outros']
-  .forEach(function (sel) {
-    $(sel).sortable({
-      update: function () {
-        var c = $(this), items = c.children('.item').get();
-        c.empty();
-        items.forEach(function (i) { c.append(i); c.append('\n'); });
-      }
-    });
+  [
+    'sortable-indicacao','sortable-equipamento','sortable-sedacao',
+    'sortable-preparo','sortable-exame','sortable-alteracao',
+    'sortable-canalanal','sortable-conclusao','sortable-obs','sortable-outros'
+  ].forEach(function (id) {
+    var zone = document.getElementById(id);
+    if (zone) ativarZona(zone);
   });
+}
+
+function ativarZona(zone) {
+  zone.querySelectorAll('.item').forEach(ativarItem);
+  new MutationObserver(function (ms) {
+    ms.forEach(function (m) {
+      m.addedNodes.forEach(function (n) {
+        if (n.nodeType === 1 && n.classList.contains('item')) ativarItem(n);
+      });
+    });
+  }).observe(zone, { childList: true });
+}
+
+function ativarItem(item) {
+  if (item.getAttribute('data-sep') === '1') return;
+  if (item.getAttribute('data-drag-init')) return;
+  item.setAttribute('data-drag-init', '1');
+
+  var wasDragged = false;
+
+  item.addEventListener('click', function (e) {
+    if (e.target.matches('input[type=checkbox], label, button, select')) return;
+    if (wasDragged) { wasDragged = false; return; }
+    var cb = item.querySelector('input[type=checkbox]');
+    if (cb) {
+      cb.checked = !cb.checked;
+      cb.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  });
+
+  item.addEventListener('pointerdown', function (e) {
+    if (e.target.matches('input[type=checkbox], button, select')) return;
+    if (e.button !== 0) return;
+
+    item.setPointerCapture(e.pointerId);
+
+    var zone       = item.closest('.sortable-zone');
+    var rect       = item.getBoundingClientRect();
+    var offX       = e.clientX - rect.left;
+    var offY       = e.clientY - rect.top;
+    var moved      = false;
+    var ghost      = null;
+    var ph         = null;
+    var lastTarget = undefined;
+
+    function startDrag() {
+      moved = true;
+      wasDragged = true;
+
+      ph = document.createElement('div');
+      ph.className = 'item';
+      ph.setAttribute('data-ph', '1');
+      ph.style.cssText =
+        'width:'  + rect.width  + 'px;' +
+        'height:' + rect.height + 'px;' +
+        'border:2px dashed var(--accent);background:var(--accent-l);' +
+        'border-radius:6px;pointer-events:none;flex-shrink:0;';
+      zone.insertBefore(ph, item);
+      item.style.display = 'none';
+
+      ghost = item.cloneNode(true);
+      ghost.style.cssText =
+        'position:fixed;z-index:9999;pointer-events:none;' +
+        'width:'  + rect.width + 'px;' +
+        'opacity:.88;box-shadow:0 8px 24px rgba(0,0,0,.22);' +
+        'transform:rotate(1.5deg) scale(1.03);' +
+        'left:' + (e.clientX - offX) + 'px;' +
+        'top:'  + (e.clientY - offY) + 'px;';
+      document.body.appendChild(ghost);
+    }
+
+    function onMove(ev) {
+      var dx = ev.clientX - (rect.left + offX);
+      var dy = ev.clientY - (rect.top  + offY);
+      if (!moved) {
+        if (Math.sqrt(dx*dx + dy*dy) < 5) return;
+        startDrag();
+      }
+      ghost.style.left = (ev.clientX - offX) + 'px';
+      ghost.style.top  = (ev.clientY - offY) + 'px';
+
+      ghost.style.visibility = 'hidden';
+      var elUnder = document.elementFromPoint(ev.clientX, ev.clientY);
+      ghost.style.visibility = '';
+      var targetZone = elUnder ? elUnder.closest('.sortable-zone') : null;
+      if (!targetZone) targetZone = zone;
+
+      if (ph.parentElement !== targetZone) {
+        targetZone.appendChild(ph);
+        lastTarget = undefined;
+      }
+      var after = getAfterElement(targetZone, ev.clientX, ev.clientY, ph);
+      var key   = after || null;
+      if (key === lastTarget) return;
+      lastTarget = key;
+      after ? targetZone.insertBefore(ph, after) : targetZone.appendChild(ph);
+    }
+
+    function onUp() {
+      item.removeEventListener('pointermove',   onMove);
+      item.removeEventListener('pointerup',     onUp);
+      item.removeEventListener('pointercancel', onUp);
+      if (moved) {
+        if (ph && ph.parentElement) ph.parentElement.insertBefore(item, ph);
+        if (ph)    ph.remove();
+        if (ghost) ghost.remove();
+        item.style.display = '';
+      } else {
+        wasDragged = false;
+      }
+    }
+
+    item.addEventListener('pointermove',   onMove);
+    item.addEventListener('pointerup',     onUp);
+    item.addEventListener('pointercancel', onUp);
+  });
+}
+
+function getAfterElement(zone, x, y, exclude) {
+  var items = Array.from(zone.querySelectorAll('.item'))
+    .filter(function (el) {
+      return el !== exclude &&
+             !el.getAttribute('data-ph') &&
+             el.getAttribute('data-sep') !== '1';
+    });
+
+  var rows = [];
+  items.forEach(function (el) {
+    var r    = el.getBoundingClientRect();
+    var rowY = Math.round(r.top / 8) * 8;
+    var row  = rows.find(function (rw) { return rw.y === rowY; });
+    if (!row) { row = { y: rowY, bottom: r.bottom, els: [] }; rows.push(row); }
+    row.bottom = Math.max(row.bottom, r.bottom);
+    row.els.push({ el: el, midX: r.left + r.width / 2 });
+  });
+  rows.sort(function (a, b) { return a.y - b.y; });
+
+  if (!rows.length) return null;
+
+  var targetRow = rows[rows.length - 1];
+  for (var i = 0; i < rows.length; i++) {
+    if (y <= rows[i].bottom) { targetRow = rows[i]; break; }
+  }
+
+  var sorted = targetRow.els.slice().sort(function (a, b) { return a.midX - b.midX; });
+  for (var j = 0; j < sorted.length; j++) {
+    if (x < sorted[j].midX) return sorted[j].el;
+  }
+
+  var ri = rows.indexOf(targetRow);
+  if (ri < rows.length - 1) {
+    var next = rows[ri + 1].els.slice().sort(function (a, b) { return a.midX - b.midX; });
+    return next[0].el;
+  }
+  return null;
 }
 
 // ----------------------------------------------------------
@@ -349,6 +513,7 @@ function showPopup() {
   if (checkboxes.length === 0) {
     container.innerHTML = '<p>Nenhum item selecionado para editar.</p>';
     document.getElementById('popup').style.display = 'block';
+    document.getElementById('backdrop').classList.add('show');
     return;
   }
   checkboxes.forEach(function (cb) {
@@ -368,6 +533,7 @@ function showPopup() {
     container.appendChild(itemDiv);
   });
   document.getElementById('popup').style.display = 'block';
+  document.getElementById('backdrop').classList.add('show');
 }
 
 function updateEverything(currentId, newName, suffix, inputEl) {
@@ -391,6 +557,7 @@ function updateOnlyValue(id, newValue) {
 function hidePopup() {
   document.getElementById('popup').style.display = 'none';
   document.getElementById('checkbox-list').innerHTML = '';
+  document.getElementById('backdrop').classList.remove('show');
 }
 
 function deleteCheckedCheckboxes() {
@@ -401,8 +568,14 @@ function deleteCheckedCheckboxes() {
   }
 }
 
-function showCreatePopup() { document.getElementById('create-popup').style.display = 'block'; }
-function hideCreatePopup() { document.getElementById('create-popup').style.display = 'none'; }
+function showCreatePopup() {
+  document.getElementById('create-popup').style.display = 'block';
+  document.getElementById('backdrop').classList.add('show');
+}
+function hideCreatePopup() {
+  document.getElementById('create-popup').style.display = 'none';
+  document.getElementById('backdrop').classList.remove('show');
+}
 
 function createCheckbox() {
   var nome      = document.getElementById('checkbox-name').value;
@@ -414,7 +587,7 @@ function createCheckbox() {
   var cb = document.createElement('input');
   cb.type = 'checkbox'; cb.name = nome; cb.value = valor; cb.id = nome + '-' + sectionId;
   var lbl = document.createElement('label');
-  lbl.htmlFor = cb.id; lbl.setAttribute('contenteditable', 'true'); lbl.innerHTML = nome;
+  lbl.htmlFor = cb.id; lbl.innerHTML = nome;
   div.appendChild(cb); div.appendChild(lbl);
   section.appendChild(document.createTextNode('\n'));
   section.appendChild(div);
@@ -446,17 +619,17 @@ function serializarSecao(containerId) {
   if (!container) return [];
   var itens = [];
   container.querySelectorAll(':scope > .item').forEach(function (div) {
+    if (div.getAttribute('data-sep') === '1') { itens.push({ separador: true }); return; }
+    if (div.getAttribute('data-ph')) return; // placeholder de drag — ignorar
     var cb = div.querySelector('input[type="checkbox"]');
     if (!cb || IDS_CONTROLE.has(cb.id) || IDS_CONTROLE.has(cb.name)) return;
     var label = div.querySelector('label');
     var nome  = label ? label.innerText.trim() : cb.name;
     if (!nome) return;
-    var tmp = document.createElement('textarea');
-    tmp.innerHTML = cb.value;
     var item = { nome: nome };
     var idPadrao = nome + '-' + containerId;
     if (cb.id && cb.id !== idPadrao) item.id = cb.id;
-    item.valor = tmp.value;
+    item.valor = cb.value; // cb.value já contém HTML — não usar textarea.innerHTML (converte <br> em \n)
     itens.push(item);
   });
   return itens;
@@ -482,7 +655,7 @@ function montarConteudoJS(dbObj) {
     '// BANCO DE DADOS \u2014 Gerar Laudo Colonoscopia\n' +
     '// Salvo em: ' + new Date().toLocaleString('pt-BR') + '\n' +
     '// ============================================================\n\n' +
-    'const DB_PADRAO = ' + JSON.stringify(dbObj, null, 2) + ';\n';
+    'var DB_PADRAO = ' + JSON.stringify(dbObj, null, 2) + ';\n';
 }
 
 function coletarDB() {
@@ -663,63 +836,70 @@ async function inicializarTokenGitHub() {
 async function salvarDados() {
   var c = lerConfigGitHub();
 
-  // Se token criptografado e ainda não descriptografado nesta sessão, pede a senha agora
   if (c.tokenCriptografado && !sessionStorage.getItem('colono_github_token')) {
     await inicializarTokenGitHub();
-    // Se ainda não tem token após as tentativas, aborta
     if (!sessionStorage.getItem('colono_github_token')) return;
   }
 
   var token = sessionStorage.getItem('colono_github_token') || c.token;
 
-  if (!token || !c.owner || !c.repo) {
-    mostrarToast('⚠️ GitHub não configurado. Verifique config.js.', '#7a4000');
+  if (!c.owner || !c.repo) {
+    mostrarToast('⚠️ config.js sem owner/repo.', '#7a4000', 6000);
+    return;
+  }
+  if (!token) {
+    mostrarToast('⚠️ Token ausente. Verifique config.js.', '#7a4000', 6000);
     return;
   }
 
-  var dbAtualizado = coletarDB();
-  var apiBase = 'https://api.github.com/repos/' + c.owner + '/' + c.repo + '/contents/' + c.path;
+  var branch  = c.branch || 'main';
+  var path    = c.path   || 'dados_colono.js';
+  var apiBase = 'https://api.github.com/repos/' + c.owner + '/' + c.repo + '/contents/' + path;
   var headers = {
     'Authorization': 'token ' + token,
     'Accept':        'application/vnd.github+json',
     'Content-Type':  'application/json'
   };
 
-  mostrarToast('🔄 Enviando para o GitHub…', '#1a2e3a');
+  mostrarToast('🔄 Enviando para o GitHub…', '#1a2e3a', 10000);
 
   try {
-    // Busca o SHA atual do arquivo (necessário para o PUT)
-    var getResp = await fetch(apiBase + '?ref=' + c.branch, { headers: headers });
+    var getResp = await fetch(apiBase + '?ref=' + encodeURIComponent(branch), { headers: headers });
     if (!getResp.ok && getResp.status !== 404) {
-      var err = await getResp.json();
-      throw new Error(err.message || 'HTTP ' + getResp.status);
+      var errGet = await getResp.json().catch(function () { return {}; });
+      throw new Error(errGet.message || 'HTTP ' + getResp.status);
     }
-    var getSha = getResp.ok ? (await getResp.json()).sha : undefined;
+    var getSha = getResp.ok ? (await getResp.json().catch(function () { return {}; })).sha : undefined;
 
-    // Codifica o conteúdo em base64
-    var conteudo    = montarConteudoJS(dbAtualizado);
-    var conteudoB64 = btoa(unescape(encodeURIComponent(conteudo)));
-
-    // Envia
+    var dbAtualizado = coletarDB();
+    var conteudo     = montarConteudoJS(dbAtualizado);
+    var conteudoB64  = btoa(unescape(encodeURIComponent(conteudo)));
     var body = {
       message: 'Atualização via interface — ' + new Date().toLocaleString('pt-BR'),
       content: conteudoB64,
-      branch:  c.branch
+      branch:  branch
     };
     if (getSha) body.sha = getSha;
 
     var putResp = await fetch(apiBase, { method: 'PUT', headers: headers, body: JSON.stringify(body) });
     if (!putResp.ok) {
-      var err2 = await putResp.json();
-      throw new Error(err2.message || 'HTTP ' + putResp.status);
+      var errPut = await putResp.json().catch(function () { return {}; });
+      var msg = errPut.message || ('HTTP ' + putResp.status);
+      if (putResp.status === 401) msg = 'Token inválido ou expirado (401).';
+      if (putResp.status === 403) msg = 'Sem permissão de escrita (403). Token precisa de Contents: Read and write.';
+      if (putResp.status === 404) msg = '404 no PUT — token sem acesso ao repositório ou caminho errado.';
+      if (putResp.status === 409) msg = 'Conflito de versão (409). Recarregue e tente novamente.';
+      if (putResp.status === 422) msg = 'SHA inválido (422). Recarregue e tente novamente.';
+      throw new Error(msg);
     }
 
-    // Atualiza _DB em memória
     Object.assign(_DB, dbAtualizado);
-    mostrarToast('✅ dados_colono.js salvo no GitHub!', '#1a3a1a');
+    mostrarToast('✅ dados_colono.js salvo no GitHub!', '#1a3a1a', 4000);
+    console.log('[salvarDados] Sucesso!');
 
   } catch (e) {
-    mostrarToast('❌ Erro: ' + e.message, '#7a1a1a');
+    mostrarToast('❌ ' + e.message, '#7a1a1a', 8000);
+    console.error('[salvarDados]', e);
   }
 }
 
@@ -732,22 +912,22 @@ function generateText() {
   var sections = [
     { id: 'sortable-indicacao',  prefix: "<span class='bold'>Indicação: </span>", suffix: '<br><br>' },
     { id: 'sortable-equipamento',prefix: "<span class='bold'>Equipamento: </span>", suffix: '<br><br>' },
-    { id: 'Sedação',             prefix: "<span class='bold'>Sedação: </span>", suffix: '<br><br><br>' },
-    { id: 'Exame',               prefix: '', suffix: '<br>' },
+    { id: 'sedacao-sec',         prefix: "<span class='bold'>Sedação: </span>", suffix: '<br><br><br>' },
+    { id: 'exame-sec',           prefix: '', suffix: '<br>' },
     { id: 'alteracao',           prefix: '', suffix: '<br>' },
     { id: 'diverticulo',         prefix: '', suffix: '<br>' },
     { id: 'canalanal',           prefix: '', suffix: '<br>' },
-    { id: 'Conclusão',           prefix: '<br><br><span class="bold">Conclusão:</span><br><br>', suffix: '<br>' },
+    { id: 'conclusao-sec',       prefix: '<br><br><span class="bold">Conclusão:</span><br><br>', suffix: '<br>' },
     { id: 'obs',                 prefix: '<br>Observação: ', suffix: '<br>' },
-    { id: 'Outros',              prefix: '', suffix: '<br><br>' }
+    { id: 'outros-sec',          prefix: '', suffix: '<br><br>' }
   ];
 
   var preparoText = '';
-  $('#Preparo input[type="checkbox"]:checked').each(function () { preparoText += $(this).val(); });
+  $('#preparo-sec input[type="checkbox"]:checked').each(function () { preparoText += $(this).val(); });
 
   for (var i = 0; i < sections.length; i++) {
     var s = sections[i], sectionText = '', prefix = s.prefix;
-    if (s.id === 'Sedação' && $('#geral').is(':checked')) prefix = '';
+    if (s.id === 'sedacao-sec' && $('#geral').is(':checked')) prefix = '';
     $('#' + s.id + ' input[type="checkbox"]:checked').each(function () { sectionText += $(this).val() + s.suffix; });
     if (sectionText) text += prefix + sectionText;
   }
@@ -764,7 +944,7 @@ function generateText() {
     text = text.replace('com trama vascular e mucosa de aspecto normal.', 'sem lesões visíveis.');
   if (text.includes('Introdução do colonoscópio pelo canal anal até o cólon descendente.'))
     text = text.replace("<span class='bold'>COLONOSCOPIA</span><br><br><br>", "<span class='bold'>RETOSSIGMOIDOSCOPIA</span><br><br><br>");
-  if ($('#Outros input[type="checkbox"]:checked').length > 0)
+  if ($('#outros-sec input[type="checkbox"]:checked').length > 0)
     text = text.replace("<span class='bold'>COLONOSCOPIA</span><br><br><br>", '');
   if (text.includes('Material utilizado'))
     text = text.replace('Observação: Material utilizado: ', 'Material utilizado: ');
