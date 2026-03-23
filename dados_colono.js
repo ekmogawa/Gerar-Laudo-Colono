@@ -1,6 +1,6 @@
 // ============================================================
 // BANCO DE DADOS — Gerar Laudo Colonoscopia
-// Salvo em: 23/03/2026, 12:28:12
+// Salvo em: 23/03/2026, 14:38:59
 // ============================================================
 
 var DB_PADRAO = {
@@ -98,8 +98,8 @@ var DB_PADRAO = {
   ],
   "sedacao": [
     {
-      "nome": "anestesista",
-      "id": "anestesista",
+      "nome": "Anestesista",
+      "id": "Anestesista",
       "valor": "equipe de anestesiologia."
     },
     {
