@@ -1011,7 +1011,7 @@ function copiarConteudo() {
 
 async function copiarFormatado() {
   var output = document.getElementById('output');
-  var htmlParaCopiar = '<div style="font-family:Arial,sans-serif;font-size:12pt;">' + output.innerHTML + '</div>';
+  var htmlParaCopiar = '<div style="font-family:Arial,sans-serif;font-size:11pt;">' + output.innerHTML + '</div>';
 
   if (navigator.clipboard && window.ClipboardItem) {
     try {
@@ -1019,12 +1019,12 @@ async function copiarFormatado() {
         'text/html':  new Blob([htmlParaCopiar], { type: 'text/html' }),
         'text/plain': new Blob([output.innerText], { type: 'text/plain' })
       })]);
-      mostrarToast('🖨️ Copiado em Arial 12!');
+      mostrarToast('🖨️ Copiado em Arial 11!');
       return;
     } catch (e) { /* fallback abaixo */ }
   }
   copiarPorSelecao(output);
-  mostrarToast('🖨️ Copiado em Arial 12!');
+  mostrarToast('🖨️ Copiado em Arial 11!');
 }
 
 // ----------------------------------------------------------
