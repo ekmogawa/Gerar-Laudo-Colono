@@ -3,7 +3,7 @@
 // Salvo em: 22/03/2026, 18:26:36
 // ============================================================
 
-const DB_PADRAO = {
+var DB_PADRAO = {
   "indicacao": [
     {
       "nome": "Rastreamento",
