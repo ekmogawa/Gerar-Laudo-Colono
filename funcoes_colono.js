@@ -963,11 +963,12 @@ function generateText() {
 
   $('#output').html(text);
   var output = document.getElementById('output');
+  var htmlFormatado = '<div style="font-family:Arial,sans-serif;font-size:12pt;">' + output.innerHTML + '</div>';
 
   // Tenta Clipboard API (Edge/Chrome); fallback para seleção (Firefox)
   if (navigator.clipboard && window.ClipboardItem) {
     navigator.clipboard.write([new ClipboardItem({
-      'text/html':  new Blob([output.innerHTML], { type: 'text/html' }),
+      'text/html':  new Blob([htmlFormatado], { type: 'text/html' }),
       'text/plain': new Blob([output.innerText],  { type: 'text/plain' })
     })]).then(function () {
       mostrarToast('📋 Laudo gerado e copiado!', '#1a3a1a');
@@ -994,16 +995,23 @@ function copiarPorSelecao(output) {
 // ----------------------------------------------------------
 
 function copiarConteudo() {
-  navigator.clipboard.writeText(document.getElementById('output').innerText)
-    .then(function () { mostrarToast('📄 Texto copiado!'); });
+  var output = document.getElementById('output');
+  var htmlFormatado = '<div style="font-family:Arial,sans-serif;font-size:12pt;">' + output.innerHTML + '</div>';
+  if (navigator.clipboard && window.ClipboardItem) {
+    navigator.clipboard.write([new ClipboardItem({
+      'text/html':  new Blob([htmlFormatado], { type: 'text/html' }),
+      'text/plain': new Blob([output.innerText], { type: 'text/plain' })
+    })]).then(function () { mostrarToast('📄 Texto copiado!'); })
+       .catch(function () { copiarPorSelecao(output); mostrarToast('📄 Texto copiado!'); });
+  } else {
+    copiarPorSelecao(output);
+    mostrarToast('📄 Texto copiado!');
+  }
 }
 
 async function copiarFormatado() {
   var output = document.getElementById('output');
-
-  // Como generateText já converteu class='bold' para inline style,
-  // o innerHTML já está correto para copiar
-  var htmlParaCopiar = '<div style="font-family:Arial,sans-serif;font-size:11pt;">' + output.innerHTML + '</div>';
+  var htmlParaCopiar = '<div style="font-family:Arial,sans-serif;font-size:12pt;">' + output.innerHTML + '</div>';
 
   if (navigator.clipboard && window.ClipboardItem) {
     try {
@@ -1011,12 +1019,12 @@ async function copiarFormatado() {
         'text/html':  new Blob([htmlParaCopiar], { type: 'text/html' }),
         'text/plain': new Blob([output.innerText], { type: 'text/plain' })
       })]);
-      mostrarToast('🖨️ Copiado em fonte 11!');
+      mostrarToast('🖨️ Copiado em Arial 12!');
       return;
     } catch (e) { /* fallback abaixo */ }
   }
   copiarPorSelecao(output);
-  mostrarToast('🖨️ Copiado em fonte 11!');
+  mostrarToast('🖨️ Copiado em Arial 12!');
 }
 
 // ----------------------------------------------------------
