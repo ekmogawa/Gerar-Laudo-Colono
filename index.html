@@ -7,9 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.0/themes/smoothness/jquery-ui.css">
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <script src="https://code.jquery.com/ui/1.13.0/jquery-ui.min.js"></script>
 
   <script src="config.js"></script>
   <script src="dados_colono.js"></script>
@@ -437,15 +435,8 @@
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
 
-    /* ── SORTABLE DRAG ── */
-    .ui-sortable-helper { opacity: .82; box-shadow: 0 4px 16px rgba(0,0,0,.18) !important; }
-    .ui-sortable-placeholder {
-      border: 2px dashed var(--accent) !important;
-      background: var(--accent-l) !important;
-      border-radius: 6px;
-      visibility: visible !important;
-      height: 34px;
-    }
+    /* ── DRAG via Pointer Events ── */
+    [data-ph="1"] { pointer-events: none; }
   </style>
 </head>
 <body>
@@ -525,25 +516,25 @@
     <div class="sec-row">
       <div class="sec-label">Indicação</div>
       <div class="sec-content" id="indicacao">
-        <div id="sortable-indicacao" class="sortable-zone ui-sortable"></div>
+        <div id="sortable-indicacao" class="sortable-zone"></div>
       </div>
     </div>
 
     <!-- EQUIPAMENTO -->
     <div class="sec-row">
       <div class="sec-label">Equipamento</div>
-      <div class="sec-content" id="Equipamento">
-        <div id="sortable-equipamento" class="sortable-zone ui-sortable"></div>
+      <div class="sec-content" id="equipamento-sec">
+        <div id="sortable-equipamento" class="sortable-zone"></div>
       </div>
     </div>
 
     <!-- SEDAÇÃO -->
     <div class="sec-row">
       <div class="sec-label">Sedação</div>
-      <div class="sec-content" id="Sedação">
-        <div id="sortable-sedacao" class="sortable-zone ui-sortable">
+      <div class="sec-content" id="sedacao-sec">
+        <div id="sortable-sedacao" class="sortable-zone">
           <!-- Item fixo de sedação dinâmica -->
-          <div class="item ui-sortable-handle" style="border-radius:6px;cursor:default;width:fit-content;">
+          <div class="item" style="border-radius:6px;cursor:default;width:fit-content;">
             <input type="checkbox" id="sedacao-dinamico" name="sedacao-dinamico" value="">
             <span style="font-size:13px;color:var(--ink3);font-weight:500;">Fentanil</span>
             <select id="fentanil"></select>
@@ -559,16 +550,16 @@
     <!-- PREPARO -->
     <div class="sec-row">
       <div class="sec-label">Preparo</div>
-      <div class="sec-content" id="Preparo">
-        <div id="sortable-preparo" class="sortable-zone ui-sortable"></div>
+      <div class="sec-content" id="preparo-sec">
+        <div id="sortable-preparo" class="sortable-zone"></div>
       </div>
     </div>
 
     <!-- EXAME -->
     <div class="sec-row">
       <div class="sec-label">Exame</div>
-      <div class="sec-content" id="Exame">
-        <div id="sortable-exame" class="sortable-zone ui-sortable"></div>
+      <div class="sec-content" id="exame-sec">
+        <div id="sortable-exame" class="sortable-zone"></div>
       </div>
     </div>
 
@@ -593,7 +584,7 @@
           <span>Hemostasia:</span> <select id="hemostasia"></select>
           <button class="btn-add" onclick="addParameter()">＋ Adicionar</button>
         </div>
-        <div id="sortable-alteracao" class="sortable-zone ui-sortable"></div>
+        <div id="sortable-alteracao" class="sortable-zone"></div>
       </div>
     </div>
 
@@ -619,7 +610,7 @@
     <div class="sec-row">
       <div class="sec-label">Canal Anal</div>
       <div class="sec-content" id="canalanal">
-        <div id="sortable-canalanal" class="sortable-zone ui-sortable"></div>
+        <div id="sortable-canalanal" class="sortable-zone"></div>
         <div class="ctrl-row">
           <select id="canal-segmento" style="display:none;">
             <option value="1">1</option><option value="2">&gt;1</option>
@@ -634,8 +625,8 @@
     <!-- CONCLUSÃO -->
     <div class="sec-row">
       <div class="sec-label">Conclusão</div>
-      <div class="sec-content" id="Conclusão">
-        <div id="sortable-conclusao" class="sortable-zone ui-sortable"></div>
+      <div class="sec-content" id="conclusao-sec">
+        <div id="sortable-conclusao" class="sortable-zone"></div>
 
         <div class="ctrl-row" style="flex-direction:column;align-items:flex-start;gap:8px;">
           <div class="sec-subrow">
@@ -670,15 +661,15 @@
     <div class="sec-row">
       <div class="sec-label">Observação</div>
       <div class="sec-content" id="obs">
-        <div id="sortable-obs" class="sortable-zone ui-sortable"></div>
+        <div id="sortable-obs" class="sortable-zone"></div>
       </div>
     </div>
 
     <!-- OUTROS -->
     <div class="sec-row" style="border-bottom:none;">
       <div class="sec-label">Outros</div>
-      <div class="sec-content" id="Outros">
-        <div id="sortable-outros" class="sortable-zone ui-sortable"></div>
+      <div class="sec-content" id="outros-sec">
+        <div id="sortable-outros" class="sortable-zone"></div>
       </div>
     </div>
 
@@ -706,28 +697,6 @@ function fecharTodosPopups() {
   document.getElementById('backdrop').classList.remove('show');
   document.getElementById('checkbox-list').innerHTML    = '';
 }
-document.addEventListener('DOMContentLoaded', function () {
-  var origShow  = showPopup;
-  var origShow2 = showCreatePopup;
-  window.showPopup = function () {
-    origShow();
-    if (document.getElementById('popup').style.display !== 'none')
-      document.getElementById('backdrop').classList.add('show');
-  };
-  window.showCreatePopup = function () {
-    origShow2();
-    document.getElementById('backdrop').classList.add('show');
-  };
-  window.hidePopup = function () {
-    document.getElementById('popup').style.display = 'none';
-    document.getElementById('checkbox-list').innerHTML = '';
-    document.getElementById('backdrop').classList.remove('show');
-  };
-  window.hideCreatePopup = function () {
-    document.getElementById('create-popup').style.display = 'none';
-    document.getElementById('backdrop').classList.remove('show');
-  };
-});
 </script>
 </body>
 </html>
