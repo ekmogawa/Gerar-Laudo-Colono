@@ -1,6 +1,6 @@
 // ============================================================
 // BANCO DE DADOS — Gerar Laudo Colonoscopia
-// Salvo em: 23/03/2026, 08:29:28
+// Salvo em: 23/03/2026, 08:30:32
 // ============================================================
 
 const DB_PADRAO = {
@@ -48,6 +48,10 @@ const DB_PADRAO = {
     {
       "nome": "Preventivo",
       "valor": "preventivo."
+    },
+    {
+      "nome": "jhv",
+      "valor": ""
     }
   ],
   "equipamento": [
