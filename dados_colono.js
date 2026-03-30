@@ -1,6 +1,6 @@
 // ============================================================
 // BANCO DE DADOS — Gerar Laudo Colonoscopia
-// Salvo em: 26/03/2026, 08:58:49
+// Salvo em: 30/03/2026, 13:00:32
 // ============================================================
 
 var DB_PADRAO = {
@@ -1034,7 +1034,7 @@ var DB_PADRAO = {
     },
     {
       "nome": "Fiber mais",
-      "valor": "<span class='bold'>Receituário Médico</span><br><br><br><br>1. Fiber Mais<br><br>Misturar uma medida a um copo de água ou suco e tomar uma vez ao dia por 15 dias.<br><br><br>2- Buscopan composto gotas<br><br>Tomar 20 gotas de 6 em 6 horas, se tiver cólicas abdominais.<br><br><br>3- Proctyl pomada<br><br>Passar na região anal de 8 em 8 horas, se tiver desconforto anal."
+      "valor": "<span class='bold'>Receituário Médico</span><br><br><br><br>1. Fiber Mais<br><br>Misturar uma medida a um copo de água ou suco e tomar uma vez ao dia por 15 dias.<br><br><br>2- Buscopan composto gotas<br><br>Tomar 21 gotas de 6 em 6 horas, se tiver cólicas abdominais.<br><br><br>3- Proctyl pomada<br><br>Passar na região anal de 8 em 8 horas, se tiver desconforto anal."
     },
     {
       "nome": "Cipro",
