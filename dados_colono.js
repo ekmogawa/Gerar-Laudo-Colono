@@ -1,6 +1,6 @@
 // ============================================================
 // BANCO DE DADOS — Gerar Laudo Colonoscopia
-// Salvo em: 30/03/2026, 13:00:32
+// Salvo em: 13/04/2026, 15:47:41
 // ============================================================
 
 var DB_PADRAO = {
@@ -48,6 +48,10 @@ var DB_PADRAO = {
     {
       "nome": "Preventivo",
       "valor": "preventivo."
+    },
+    {
+      "nome": "FIT+",
+      "valor": "exame de sangue oculto nas fezes positivo."
     }
   ],
   "equipamento": [
