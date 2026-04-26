@@ -1,12 +1,337 @@
 // ============================================================
-// FUNÇÕES — Gerar Laudo Colonoscopia
-// Depende de: config.js e dados_colono.js (carregados antes)
+// FUNÇÕES — Gerar Laudo Colonoscopia (Firebase Edition)
+// Depende de: firebase-config.js + config.js + dados_colono.js
 // ============================================================
 
 // ----------------------------------------------------------
+// FIREBASE — instâncias globais
+// ----------------------------------------------------------
+
+var _auth      = null;
+var _firestore = null;
+var _user      = null;
+var _modoVisitante  = false;
+var _CADASTRO_ABERTO = false;
+
+function inicializarFirebase() {
+  if (typeof FIREBASE_CONFIG === 'undefined' ||
+      FIREBASE_CONFIG.apiKey === 'COLE_SUA_API_KEY_AQUI') {
+    document.body.innerHTML =
+      '<div style="font:16px Arial;padding:48px;color:#900;max-width:560px;margin:auto">' +
+      '<h2 style="margin-bottom:12px">&#9888; Firebase não configurado</h2>' +
+      '<p>Edite <b>firebase-config.js</b> com as credenciais do projeto Firebase.</p></div>';
+    return;
+  }
+
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    _auth      = firebase.auth();
+    _firestore = firebase.firestore();
+
+    _firestore.enablePersistence({ synchronizeTabs: true }).catch(function (err) {
+      if (err.code !== 'failed-precondition' && err.code !== 'unimplemented')
+        console.warn('[Firestore] Persistência offline:', err.code);
+    });
+
+    ['auth-password', 'cad-password2'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter') return;
+        id === 'auth-password' ? loginUsuario() : registrarUsuario();
+      });
+    });
+
+    var tabCad = document.getElementById('tab-cadastrar');
+    if (tabCad) tabCad.style.display = _CADASTRO_ABERTO ? '' : 'none';
+
+    _auth.onAuthStateChanged(function (user) {
+      _user = user;
+      _modoVisitante = !!(user && user.isAnonymous);
+      if (user) {
+        ocultarModalAuth();
+        atualizarStatusUsuario();
+        carregarDados();
+      } else {
+        _modoVisitante = false;
+        mostrarModalAuth();
+        atualizarStatusUsuario();
+      }
+    });
+
+  } catch (e) {
+    console.error('[Firebase] Erro na inicialização:', e);
+    mostrarToast('&#10060; Erro ao conectar ao Firebase: ' + e.message, '#7a1a1a', 10000);
+  }
+}
+
+// ----------------------------------------------------------
+// AUTH — UI
+// ----------------------------------------------------------
+
+function mostrarModalAuth() {
+  var overlay = document.getElementById('auth-overlay');
+  if (overlay) overlay.classList.add('show');
+}
+
+function ocultarModalAuth() {
+  var overlay = document.getElementById('auth-overlay');
+  if (overlay) overlay.classList.remove('show');
+}
+
+function mostrarTabAuth(tab) {
+  document.getElementById('form-entrar').style.display    = tab === 'entrar'    ? '' : 'none';
+  document.getElementById('form-cadastrar').style.display = tab === 'cadastrar' ? '' : 'none';
+  document.getElementById('tab-entrar').classList.toggle('active',    tab === 'entrar');
+  document.getElementById('tab-cadastrar').classList.toggle('active', tab === 'cadastrar');
+  document.getElementById('auth-erro').textContent = '';
+  document.getElementById(tab === 'entrar' ? 'auth-email' : 'cad-email').focus();
+}
+
+function _mostrarErroAuth(msg) {
+  var el = document.getElementById('auth-erro');
+  if (el) el.textContent = msg;
+}
+
+var _MSGS_AUTH = {
+  'auth/user-not-found':        'Usuário não encontrado.',
+  'auth/wrong-password':        'Senha incorreta.',
+  'auth/invalid-credential':    'E-mail ou senha incorretos.',
+  'auth/email-already-in-use':  'Este e-mail já está cadastrado.',
+  'auth/weak-password':         'A senha deve ter pelo menos 6 caracteres.',
+  'auth/invalid-email':         'E-mail inválido.',
+  'auth/network-request-failed':'Sem conexão. Verifique a internet.',
+  'auth/too-many-requests':     'Muitas tentativas. Aguarde alguns minutos.',
+  'auth/missing-password':      'Digite a senha.'
+};
+
+async function loginUsuario() {
+  var email = document.getElementById('auth-email').value.trim();
+  var senha = document.getElementById('auth-password').value;
+  if (!email || !senha) { _mostrarErroAuth('Preencha e-mail e senha.'); return; }
+  var btn = document.getElementById('btn-login');
+  btn.disabled = true;
+  try {
+    await _auth.signInWithEmailAndPassword(email, senha);
+  } catch (e) {
+    _mostrarErroAuth(_MSGS_AUTH[e.code] || e.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function registrarUsuario() {
+  if (!_CADASTRO_ABERTO) {
+    _mostrarErroAuth('Cadastro de novas contas está temporariamente suspenso.');
+    return;
+  }
+  var email  = document.getElementById('cad-email').value.trim();
+  var senha  = document.getElementById('cad-password').value;
+  var senha2 = document.getElementById('cad-password2').value;
+  var codigo = document.getElementById('cad-codigo').value.trim().toUpperCase();
+
+  if (!email || !senha || !codigo) { _mostrarErroAuth('Preencha todos os campos, incluindo o código de acesso.'); return; }
+  if (senha !== senha2)            { _mostrarErroAuth('As senhas não coincidem.'); return; }
+  if (senha.length < 6)            { _mostrarErroAuth('Mínimo de 6 caracteres na senha.'); return; }
+
+  var btn = document.getElementById('btn-cadastrar');
+  btn.disabled = true;
+
+  try {
+    var codigoDoc = await _firestore.collection('codigos').doc(codigo).get();
+    if (!codigoDoc.exists || codigoDoc.data().usado) {
+      _mostrarErroAuth('Código de acesso inválido ou já utilizado.');
+      return;
+    }
+    var cred = await _auth.createUserWithEmailAndPassword(email, senha);
+    await _firestore.collection('codigos').doc(codigo).update({
+      usado:    true,
+      usadoPor: cred.user.uid,
+      usadoEm:  firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch (e) {
+    _mostrarErroAuth(_MSGS_AUTH[e.code] || e.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function entrarComoVisitante() {
+  var btn = document.getElementById('btn-visitante');
+  if (btn) { btn.disabled = true; btn.textContent = 'Aguarde…'; }
+  try {
+    await _auth.signInAnonymously();
+  } catch (e) {
+    _mostrarErroAuth(
+      e.code === 'auth/operation-not-allowed'
+        ? 'Acesso como visitante não habilitado. Contate o administrador.'
+        : ('Erro: ' + (e.message || e))
+    );
+    if (btn) { btn.disabled = false; btn.textContent = '👤 Entrar como Visitante'; }
+  }
+}
+
+async function resetarSenha() {
+  var email = document.getElementById('auth-email').value.trim();
+  if (!email) { _mostrarErroAuth('Digite seu e-mail acima para redefinir a senha.'); return; }
+  try {
+    await _auth.sendPasswordResetEmail(email);
+    _mostrarErroAuth('');
+    mostrarToast('&#128231; E-mail de redefinição enviado!', '#1a3a1a', 5000);
+  } catch (e) {
+    _mostrarErroAuth(_MSGS_AUTH[e.code] || e.message);
+  }
+}
+
+async function sairUsuario() {
+  if (!confirm('Deseja sair?')) return;
+  await _auth.signOut();
+}
+
+function atualizarStatusUsuario() {
+  var el = document.getElementById('user-status');
+  if (!el) return;
+  if (_user && _modoVisitante) {
+    el.innerHTML =
+      '<span class="user-email" style="background:rgba(255,180,0,.18);border-color:rgba(255,180,0,.4);color:rgba(255,240,180,.95);">&#128100; Visitante</span>' +
+      '<button class="btn-ghost btn-xs" onclick="sairUsuario()">Sair</button>';
+  } else if (_user) {
+    el.innerHTML =
+      '<span class="user-email">' + _user.email + '</span>' +
+      '<button class="btn-ghost btn-xs" onclick="sairUsuario()">Sair</button>';
+  } else {
+    el.innerHTML = '';
+  }
+}
+
+// ----------------------------------------------------------
+// AUTO-SAVE
+// ----------------------------------------------------------
+
+var _autoSaveAtivo = localStorage.getItem('colono_autosave') === '1';
+var _autoSaveTimer = null;
+var _temAlteracoes = false;
+
+function agendarAutoSave() {
+  if (_modoVisitante) return;
+  _temAlteracoes = true;
+  atualizarIndicadorSalvo();
+  registrarSnapshot();
+  if (typeof _agendarLiveLaudo === 'function') _agendarLiveLaudo();
+  if (!_autoSaveAtivo) return;
+  clearTimeout(_autoSaveTimer);
+  _autoSaveTimer = setTimeout(salvarDados, 1500);
+}
+
+function toggleAutoSave() {
+  _autoSaveAtivo = !_autoSaveAtivo;
+  localStorage.setItem('colono_autosave', _autoSaveAtivo ? '1' : '0');
+  atualizarBotaoAutoSave();
+  if (_autoSaveAtivo && _temAlteracoes) salvarDados();
+}
+
+function atualizarBotaoAutoSave() {
+  var btn = document.getElementById('btn-autosave');
+  if (!btn) return;
+  if (_autoSaveAtivo) {
+    btn.textContent = '🔄 Auto-save: ON';
+    btn.className   = 'btn-save btn-autosave-on';
+  } else {
+    btn.textContent = '🔄 Auto-save: OFF';
+    btn.className   = 'btn-ghost';
+  }
+}
+
+function atualizarIndicadorSalvo() {
+  var el = document.getElementById('save-indicator');
+  if (!el) return;
+  el.textContent = _temAlteracoes ? '● Não salvo' : '✓ Salvo';
+  el.style.opacity = _temAlteracoes ? '0.75' : '0.4';
+}
+
+// ----------------------------------------------------------
+// FIRESTORE — CARREGAR / SALVAR
+// ----------------------------------------------------------
+
+async function carregarDados() {
+  if (!_user || !_firestore) return;
+  mostrarToast('⌛ Carregando…', '#1a2e3a', 8000);
+
+  if (_modoVisitante) {
+    try {
+      var vDoc = await _firestore.collection('visitante').doc('publico').get();
+      var vDados = (vDoc.exists && vDoc.data() && vDoc.data().dbColono)
+        ? vDoc.data().dbColono
+        : (typeof DB_PADRAO !== 'undefined' ? DB_PADRAO : {});
+      _DB = JSON.parse(JSON.stringify(vDados));
+      window._inicializado = false;
+      inicializar();
+      mostrarToast('👤 Modo visitante — somente leitura', '#1a3a5a', 3500);
+    } catch (e) {
+      console.error('[carregarDados visitante]', e);
+      _DB = JSON.parse(JSON.stringify(typeof DB_PADRAO !== 'undefined' ? DB_PADRAO : {}));
+      window._inicializado = false;
+      inicializar();
+      mostrarToast('👤 Visitante (banco padrão)', '#1a3a5a', 3500);
+    }
+    return;
+  }
+
+  try {
+    var doc = await _firestore.collection('users').doc(_user.uid).get();
+    var dados;
+    if (doc.exists && doc.data().dbColono) {
+      dados = doc.data().dbColono;
+    } else {
+      dados = (typeof DB_PADRAO !== 'undefined') ? DB_PADRAO : {};
+      await _firestore.collection('users').doc(_user.uid).set(
+        { dbColono: dados, email: _user.email },
+        { merge: true }
+      );
+    }
+    _DB = JSON.parse(JSON.stringify(dados));
+    window._inicializado = false;
+    inicializar();
+    mostrarToast('✓ Dados carregados.', '#1a3a1a', 2000);
+  } catch (e) {
+    console.error('[carregarDados]', e);
+    mostrarToast('❌ Erro ao carregar: ' + e.message, '#7a1a1a', 10000);
+  }
+}
+
+async function salvarDados() {
+  if (_modoVisitante) {
+    mostrarToast('👤 Modo visitante — salvamento não permitido.', '#7a4000', 4000);
+    return;
+  }
+  if (!_user || !_firestore) {
+    mostrarToast('⚠ Faça login para salvar.', '#7a4000', 5000);
+    return;
+  }
+  clearTimeout(_autoSaveTimer);
+  mostrarToast('🔄 Salvando…', '#1a2e3a', 6000);
+  try {
+    var db = coletarDB({ semDinamicos: true });
+    await _firestore.collection('users').doc(_user.uid).set(
+      { dbColono: db, atualizadoEm: firebase.firestore.FieldValue.serverTimestamp() },
+      { merge: true }
+    );
+    _DB = JSON.parse(JSON.stringify(db));
+    _temAlteracoes = false;
+    atualizarIndicadorSalvo();
+    mostrarToast('✓ Salvo!', '#1a3a1a', 2500);
+
+    if (_user.email === 'ekmogawa@gmail.com') {
+      _firestore.collection('visitante').doc('publico').set({ dbColono: db }, { merge: true })
+        .catch(function (e) { console.warn('[visitante sync]', e); });
+    }
+  } catch (e) {
+    console.error('[salvarDados]', e);
+    mostrarToast('❌ Erro ao salvar: ' + e.message, '#7a1a1a', 10000);
+  }
+}
+
+// ----------------------------------------------------------
 // BANCO ATIVO
-// Usa _DB internamente para nunca colidir com variáveis do
-// dados_colono.js (que pode declarar DB ou DB_PADRAO).
 // ----------------------------------------------------------
 var _DB;
 (function () {
@@ -17,10 +342,7 @@ var _DB;
     document.addEventListener('DOMContentLoaded', function () {
       document.body.innerHTML =
         '<div style="font:16px Arial;padding:40px;color:#900">' +
-        '&#10060; Erro: <b>dados_colono.js</b> n&#227;o carregou.<br><br>' +
-        'Certifique-se de que o reposit&#243;rio cont&#233;m os 4 arquivos:<br>' +
-        '<code>index.html &nbsp; config.js &nbsp; dados_colono.js &nbsp; funcoes_colono.js</code>' +
-        '</div>';
+        '&#10060; Erro: <b>dados_colono.js</b> não carregou.</div>';
     });
     return;
   }
@@ -44,6 +366,7 @@ var _contadorDinamico = 0;
 function createCheckboxDiv(text, name) {
   var div = document.createElement('div');
   div.className = 'item item-dinamico ui-sortable-handle';
+  div.setAttribute('data-populated', '1');
   div.style.display = 'block';
   var nomeUnico = name + '_d' + (++_contadorDinamico);
   div.innerHTML = '<input type="checkbox" name="' + nomeUnico + '" value="' + text + '" checked><label>' + text + '</label>';
@@ -88,6 +411,8 @@ function mostrarToast(msg, cor, duracao) {
   clearTimeout(t._timer);
   t._timer = setTimeout(function () { t.classList.remove('show'); }, duracao || 3200);
 }
+
+// HISTÓRICO + BUSCA RÁPIDA — ver historico_colono.js
 
 // ----------------------------------------------------------
 // INICIALIZAÇÃO — popula a página
@@ -190,6 +515,15 @@ function inicializar() {
   inicializarSincronizacaoCheckboxes();
   inicializarMultiplosAchados();
   atualizarStatusGitHub();
+
+  _instalarHistorico();
+  if (!_histAplicando) _resetHistorico();
+
+  setTimeout(function () {
+    _temAlteracoes = false;
+    if (typeof atualizarIndicadorSalvo === 'function') atualizarIndicadorSalvo();
+    if (typeof atualizarBotaoAutoSave === 'function') atualizarBotaoAutoSave();
+  }, 200);
 }
 
 // ----------------------------------------------------------
@@ -514,7 +848,9 @@ function showPopup() {
   var container  = document.getElementById('checkbox-list');
   container.innerHTML = '';
   if (checkboxes.length === 0) {
-    container.innerHTML = '<p>Nenhum item selecionado para editar.</p>';
+    var p = document.createElement('p');
+    p.textContent = 'Nenhum item selecionado para editar.';
+    container.appendChild(p);
     document.getElementById('popup').style.display = 'block';
     document.getElementById('backdrop').classList.add('show');
     return;
@@ -523,32 +859,61 @@ function showPopup() {
     var label     = document.querySelector('label[for="' + cb.id + '"]');
     var labelText = label ? label.innerText : '';
     var suffix    = cb.id.replace(cb.name, '');
-    var itemDiv   = document.createElement('div');
+
+    var itemDiv = document.createElement('div');
     itemDiv.style.cssText = 'border-bottom:1px solid #ccc;padding:10px 0;';
-    itemDiv.innerHTML =
-      '<div><strong>Nome do Item:</strong><br>' +
-      '<input type="text" style="width:300px;margin-bottom:10px;"' +
-      ' oninput="updateEverything(\'' + cb.id + '\',this.value,\'' + suffix + '\',this)"' +
-      ' value="' + labelText + '"></div>' +
-      '<div><strong>Texto da entrada:</strong><br>' +
-      '<textarea class="edit-value-input" style="height:60px;width:90%;"' +
-      ' oninput="updateOnlyValue(\'' + cb.id + '\',this.value)">' + cb.value + '</textarea></div>';
+
+    var nomeWrap = document.createElement('div');
+    var nomeStrong = document.createElement('strong');
+    nomeStrong.textContent = 'Nome do Item:';
+    nomeWrap.appendChild(nomeStrong);
+    nomeWrap.appendChild(document.createElement('br'));
+    var nomeInput = document.createElement('input');
+    nomeInput.type = 'text';
+    nomeInput.style.cssText = 'width:300px;margin-bottom:10px;';
+    nomeInput.value = labelText;
+    nomeInput.dataset.targetId = cb.id;
+    nomeInput.dataset.suffix   = suffix;
+    nomeWrap.appendChild(nomeInput);
+
+    var valorWrap = document.createElement('div');
+    var valorStrong = document.createElement('strong');
+    valorStrong.textContent = 'Texto da entrada:';
+    valorWrap.appendChild(valorStrong);
+    valorWrap.appendChild(document.createElement('br'));
+    var valorTa = document.createElement('textarea');
+    valorTa.className = 'edit-value-input';
+    valorTa.style.cssText = 'height:60px;width:90%;';
+    valorTa.value = cb.value;
+    valorTa.dataset.targetId = cb.id;
+    valorWrap.appendChild(valorTa);
+
+    nomeInput.addEventListener('input', function () {
+      updateEverything(this.dataset.targetId, this.value, this.dataset.suffix, this, valorTa);
+    });
+    valorTa.addEventListener('input', function () {
+      updateOnlyValue(this.dataset.targetId, this.value);
+    });
+
+    itemDiv.appendChild(nomeWrap);
+    itemDiv.appendChild(valorWrap);
     container.appendChild(itemDiv);
   });
   document.getElementById('popup').style.display = 'block';
   document.getElementById('backdrop').classList.add('show');
 }
 
-function updateEverything(currentId, newName, suffix, inputEl) {
+function updateEverything(currentId, newName, suffix, nomeInput, valorTa) {
   var checkbox = document.getElementById(currentId);
   var label    = document.querySelector('label[for="' + currentId + '"]');
-  var newId    = newName + suffix;
   if (checkbox && label) {
-    checkbox.id = newId; checkbox.name = newName;
-    label.setAttribute('for', newId); label.innerText = newName;
-    inputEl.setAttribute('oninput', 'updateEverything(\'' + newId + '\',this.value,\'' + suffix + '\',this)');
-    inputEl.closest('div').parentElement.querySelector('.edit-value-input')
-      .setAttribute('oninput', 'updateOnlyValue(\'' + newId + '\',this.value)');
+    var newId = newName + suffix;
+    checkbox.id   = newId;
+    checkbox.name = newName;
+    label.setAttribute('for', newId);
+    label.innerText = newName;
+    if (nomeInput) nomeInput.dataset.targetId = newId;
+    if (valorTa)   valorTa.dataset.targetId   = newId;
   }
 }
 
@@ -564,6 +929,10 @@ function hidePopup() {
 }
 
 function deleteCheckedCheckboxes() {
+  if (_modoVisitante) {
+    mostrarToast('👤 Modo visitante — exclusão não permitida.', '#7a4000', 4000);
+    return;
+  }
   var checkboxes = document.querySelectorAll('input[type="checkbox"]:checked');
   if (checkboxes.length > 0 && confirm('Deseja excluir os itens selecionados?')) {
     checkboxes.forEach(function (cb) { (cb.closest('.item') || cb.parentElement).remove(); });
@@ -581,12 +950,17 @@ function hideCreatePopup() {
 }
 
 function createCheckbox() {
+  if (_modoVisitante) {
+    mostrarToast('👤 Modo visitante — criação não permitida.', '#7a4000', 4000);
+    return;
+  }
   var nome      = document.getElementById('checkbox-name').value;
   var valor     = document.getElementById('checkbox-value').value.replace(/\n/g, '<br>');
   var sectionId = getVal('section-select');
   var section   = document.getElementById(sectionId);
   var div = document.createElement('div');
   div.className = 'item';
+  div.setAttribute('data-populated', '1');
   var cb = document.createElement('input');
   cb.type = 'checkbox'; cb.name = nome; cb.value = valor; cb.id = nome + '-' + sectionId;
   var lbl = document.createElement('label');
@@ -606,6 +980,8 @@ function createCheckbox() {
 
 function uncheckAll() {
   document.querySelectorAll('input[type="checkbox"]').forEach(function (cb) { cb.checked = false; });
+  registrarSnapshot();
+  if (typeof _agendarLiveLaudo === 'function') _agendarLiveLaudo();
 }
 
 // ----------------------------------------------------------
@@ -617,11 +993,13 @@ var IDS_CONTROLE = new Set([
   'alteracao-conc-sortable-conclusao','alteracoes-conc-sortable-conclusao'
 ]);
 
-function serializarSecao(containerId) {
+function serializarSecao(containerId, opts) {
+  opts = opts || {};
   var container = document.getElementById(containerId);
   if (!container) return [];
   var itens = [];
   container.querySelectorAll(':scope > .item').forEach(function (div) {
+    if (opts.semDinamicos && div.classList.contains('item-dinamico')) return;
     if (div.getAttribute('data-sep') === '1') { itens.push({ separador: true }); return; }
     if (div.getAttribute('data-ph')) return; // placeholder de drag — ignorar
     var cb = div.querySelector('input[type="checkbox"]');
@@ -632,7 +1010,7 @@ function serializarSecao(containerId) {
     var item = { nome: nome };
     var idPadrao = nome + '-' + containerId;
     if (cb.id && cb.id !== idPadrao) item.id = cb.id;
-    item.valor = cb.value; // cb.value já contém HTML — não usar textarea.innerHTML (converte <br> em \n)
+    item.valor = cb.value;
     itens.push(item);
   });
   return itens;
@@ -661,17 +1039,17 @@ function montarConteudoJS(dbObj) {
     'var DB_PADRAO = ' + JSON.stringify(dbObj, null, 2) + ';\n';
 }
 
-function coletarDB() {
+function coletarDB(opts) {
   return {
-    indicacao:   serializarSecao('sortable-indicacao'),
-    equipamento: serializarSecao('sortable-equipamento'),
-    sedacao:     serializarSecao('sortable-sedacao'),
+    indicacao:   serializarSecao('sortable-indicacao', opts),
+    equipamento: serializarSecao('sortable-equipamento', opts),
+    sedacao:     serializarSecao('sortable-sedacao', opts),
     sedacaoSelects: {
       fentanil:  Array.from(document.getElementById('fentanil').options).map(function (o) { return o.value; }),
       midazolam: Array.from(document.getElementById('midazolam').options).map(function (o) { return o.value; })
     },
-    preparo:  serializarSecao('sortable-preparo'),
-    exame:    serializarSecao('sortable-exame'),
+    preparo:  serializarSecao('sortable-preparo', opts),
+    exame:    serializarSecao('sortable-exame', opts),
     lesoes: {
       localizacao: serializarSelect('localizacao'),
       paris:       serializarSelect('lesao'),
@@ -694,7 +1072,7 @@ function coletarDB() {
       alteracao: serializarSelect('alt-anal'),
       local:     serializarSelect('local-anal')
     },
-    conclusao: serializarSecao('sortable-conclusao'),
+    conclusao: serializarSecao('sortable-conclusao', opts),
     conclusaoSimples: {
       numero:    serializarSelect('numero-conc'),
       lesao:     serializarSelect('lesao-conc'),
@@ -706,8 +1084,8 @@ function coletarDB() {
       quantidades: _DB.conclusaoComposta.quantidades,
       resseccao:  serializarSelect('resseccao2-conc')
     },
-    obs:    serializarSecao('sortable-obs'),
-    outros: serializarSecao('sortable-outros')
+    obs:    serializarSecao('sortable-obs', opts),
+    outros: serializarSecao('sortable-outros', opts)
   };
 }
 
@@ -833,10 +1211,10 @@ async function inicializarTokenGitHub() {
 }
 
 // ----------------------------------------------------------
-// SALVAR NO GITHUB VIA API
+// BACKUP NO GITHUB VIA API
 // ----------------------------------------------------------
 
-async function salvarDados() {
+async function salvarBackupGitHub() {
   var c = lerConfigGitHub();
 
   if (c.tokenCriptografado && !sessionStorage.getItem('colono_github_token')) {
@@ -874,7 +1252,7 @@ async function salvarDados() {
     }
     var getSha = getResp.ok ? (await getResp.json().catch(function () { return {}; })).sha : undefined;
 
-    var dbAtualizado = coletarDB();
+    var dbAtualizado = coletarDB({ semDinamicos: true });
     var conteudo     = montarConteudoJS(dbAtualizado);
     var conteudoB64  = btoa(unescape(encodeURIComponent(conteudo)));
     var body = {
@@ -910,7 +1288,7 @@ async function salvarDados() {
 // GERAR LAUDO
 // ----------------------------------------------------------
 
-function generateText() {
+function montarLaudo() {
   var text = "<span class='bold'>COLONOSCOPIA</span><br><br><br>";
   var sections = [
     { id: 'sortable-indicacao',  prefix: "<span class='bold'>Indicação: </span>", suffix: '<br><br>' },
@@ -925,19 +1303,29 @@ function generateText() {
     { id: 'outros-sec',          prefix: '', suffix: '<br><br>' }
   ];
 
+  function _qChecked(seletor) {
+    return Array.from(document.querySelectorAll(seletor + ' input[type="checkbox"]:checked'));
+  }
+  function _isChecked(id) {
+    var el = document.getElementById(id);
+    return !!(el && el.checked);
+  }
+
   var preparoText = '';
-  $('#preparo-sec input[type="checkbox"]:checked').each(function () { preparoText += $(this).val(); });
+  _qChecked('#preparo-sec').forEach(function (cb) { preparoText += cb.value; });
 
   for (var i = 0; i < sections.length; i++) {
     var s = sections[i], sectionText = '', prefix = s.prefix;
-    if (s.id === 'sedacao-sec' && $('#geral').is(':checked')) prefix = '';
-    $('#' + s.id + ' input[type="checkbox"]:checked').each(function () { sectionText += $(this).val() + s.suffix; });
+    if (s.id === 'sedacao-sec' && _isChecked('geral')) prefix = '';
+    _qChecked('#' + s.id).forEach(function (cb) { sectionText += cb.value + s.suffix; });
     if (sectionText) text += prefix + sectionText;
   }
 
-  if ($("[id='Ressecção de lesão-sortable-indicacao']:checked, [id='Retossigmoidoscopia-sortable-exame']:checked").length === 2)
+  var ressIndic = document.querySelector("[id='Ressecção de lesão-sortable-indicacao']");
+  var retoExame = document.querySelector("[id='Retossigmoidoscopia-sortable-exame']");
+  if (ressIndic && ressIndic.checked && retoExame && retoExame.checked)
     text = text.replace('COLONOSCOPIA', 'RETOSSIGMOIDOSCOPIA TERAPÊUTICA');
-  if ($("[id='Ressecção de lesão-sortable-indicacao']").is(':checked'))
+  if (ressIndic && ressIndic.checked)
     text = text.replace('COLONOSCOPIA', 'COLONOSCOPIA TERAPÊUTICA');
   if (preparoText)
     text = text.replace('Preparo adequado para o exame (Boston 9).', preparoText);
@@ -947,25 +1335,32 @@ function generateText() {
     text = text.replace('com trama vascular e mucosa de aspecto normal.', 'sem lesões visíveis.');
   if (text.includes('Introdução do colonoscópio pelo canal anal até o cólon descendente.'))
     text = text.replace("<span class='bold'>COLONOSCOPIA</span><br><br><br>", "<span class='bold'>RETOSSIGMOIDOSCOPIA</span><br><br><br>");
-  if ($('#outros-sec input[type="checkbox"]:checked').length > 0)
+  if (_qChecked('#outros-sec').length > 0)
     text = text.replace("<span class='bold'>COLONOSCOPIA</span><br><br><br>", '');
   if (text.includes('Material utilizado'))
     text = text.replace('Observação: Material utilizado: ', 'Material utilizado: ');
 
   var canalanalText = '';
-  $('#canalanal input[type="checkbox"]:checked').each(function () { canalanalText += $(this).val(); });
+  _qChecked('#canalanal').forEach(function (cb) { canalanalText += cb.value; });
   if (canalanalText.length > 0) text = text.replace(/Reto sem alterações./g, '');
 
-  // Converte class="bold" → style inline antes de renderizar,
-  // garantindo que a formatação sobreviva ao colar em qualquer browser
   text = text.replace(/<span class='bold'>/g, '<span style="font-weight:bold">')
              .replace(/<span class="bold">/g, '<span style="font-weight:bold">');
 
-  $('#output').html(text);
   var output = document.getElementById('output');
+  if (!output) return null;
+  if (document.activeElement === output) return output;
+  output.innerHTML = text;
+  return output;
+}
+
+function generateText() {
+  var output = montarLaudo();
+  if (!output) return;
+  try { output.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) {}
+  salvarUltimoLaudo();
   var htmlFormatado = '<div style="font-family:Arial,sans-serif;font-size:12pt;">' + output.innerHTML + '</div>';
 
-  // Tenta Clipboard API (Edge/Chrome); fallback para seleção (Firefox)
   if (navigator.clipboard && window.ClipboardItem) {
     navigator.clipboard.write([new ClipboardItem({
       'text/html':  new Blob([htmlFormatado], { type: 'text/html' }),
@@ -1030,4 +1425,4 @@ async function copiarFormatado() {
 // ----------------------------------------------------------
 // INICIALIZA AO CARREGAR
 // ----------------------------------------------------------
-document.addEventListener('DOMContentLoaded', inicializar);
+document.addEventListener('DOMContentLoaded', inicializarFirebase);

@@ -1,6 +1,6 @@
 // ============================================================
 // BANCO DE DADOS — Gerar Laudo Colonoscopia
-// Salvo em: 26/04/2026, 11:59:27
+// Salvo em: 13/04/2026, 15:47:41
 // ============================================================
 
 var DB_PADRAO = {
@@ -924,45 +924,45 @@ var DB_PADRAO = {
       }
     ],
     "quantidades": {
-      "anghep": {
-        "id": "numeroanghep-conc",
-        "prefixo": " {n} em ângulo hepático;",
-        "label": "Ang hep"
+      "ceco": {
+        "id": "numeroceco-conc",
+        "label": "Ceco",
+        "prefixo": " {n} em ceco;"
       },
       "ascendente": {
-        "prefixo": " {n} em cólon ascendente;",
+        "id": "numeroasc-conc",
         "label": "Asc",
-        "id": "numeroasc-conc"
+        "prefixo": " {n} em cólon ascendente;"
       },
-      "ceco": {
-        "prefixo": " {n} em ceco;",
-        "label": "Ceco",
-        "id": "numeroceco-conc"
-      },
-      "sigmoide": {
-        "prefixo": " {n} em cólon sigmoide;",
-        "label": "Sig",
-        "id": "numerosig-conc"
-      },
-      "reto": {
-        "label": "Reto",
-        "prefixo": " {n} em reto;",
-        "id": "numeroreto-conc"
+      "anghep": {
+        "id": "numeroanghep-conc",
+        "label": "Ang hep",
+        "prefixo": " {n} em ângulo hepático;"
       },
       "transverso": {
         "id": "numerotransv-conc",
-        "prefixo": " {n} em cólon transverso;",
-        "label": "Transv"
+        "label": "Transv",
+        "prefixo": " {n} em cólon transverso;"
       },
       "angesp": {
         "id": "numeroangesp-conc",
-        "prefixo": " {n} em ângulo esplênico;",
-        "label": "Ang esp"
+        "label": "Ang esp",
+        "prefixo": " {n} em ângulo esplênico;"
       },
       "descendente": {
         "id": "numerodesc-conc",
-        "prefixo": " {n} em cólon descendente;",
-        "label": "Desc"
+        "label": "Desc",
+        "prefixo": " {n} em cólon descendente;"
+      },
+      "sigmoide": {
+        "id": "numerosig-conc",
+        "label": "Sig",
+        "prefixo": " {n} em cólon sigmoide;"
+      },
+      "reto": {
+        "id": "numeroreto-conc",
+        "label": "Reto",
+        "prefixo": " {n} em reto;"
       }
     },
     "resseccao": [
