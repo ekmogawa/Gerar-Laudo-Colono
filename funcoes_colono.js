@@ -367,7 +367,6 @@ function createCheckboxDiv(text, name) {
   var div = document.createElement('div');
   div.className = 'item item-dinamico ui-sortable-handle';
   div.setAttribute('data-populated', '1');
-  div.style.display = 'block';
   var nomeUnico = name + '_d' + (++_contadorDinamico);
   div.innerHTML = '<input type="checkbox" name="' + nomeUnico + '" value="' + text + '" checked><label>' + text + '</label>';
   return div;
@@ -678,10 +677,11 @@ function getAfterElement(zone, x, y, exclude) {
 
   if (!rows.length) return null;
 
-  var targetRow = rows[rows.length - 1];
+  var targetRow = null;
   for (var i = 0; i < rows.length; i++) {
     if (y <= rows[i].bottom) { targetRow = rows[i]; break; }
   }
+  if (!targetRow) return null;
 
   var sorted = targetRow.els.slice().sort(function (a, b) { return a.midX - b.midX; });
   for (var j = 0; j < sorted.length; j++) {
@@ -720,8 +720,10 @@ function inicializarMultiplosAchados() {
     if (el) el.style.display = 'none';
   });
   document.addEventListener('change', function (e) {
-    if (e.target.id !== 'Multiplos-achados-sortable-exame') return;
-    var val = e.target.checked ? '2' : '1';
+    if (!e.target || e.target.type !== 'checkbox') return;
+    if (!e.target.closest || !e.target.closest('#exame-sec')) return;
+    var multAch = document.getElementById('Multiplos-achados-sortable-exame');
+    var val = (multAch && multAch.checked) ? '2' : '1';
     ['segmento','diver-segmento','canal-segmento'].forEach(function (id) {
       var el = document.getElementById(id);
       if (el) el.value = val;
@@ -782,7 +784,119 @@ function addParameter() {
   if (numero !== '') alteracaoText = pluralizar(alteracaoText);
   if (lesao.includes('lesão') || lesao.includes('angiectasia'))
     alteracaoText = alteracaoText.replace('um', 'uma').replace('dois', 'duas');
-  appendToSortable('sortable-alteracao', createCheckboxDiv(alteracaoText, 'alteracao'));
+  var divLesao = createCheckboxDiv(alteracaoText, 'alteracao');
+  if (segmentoSel.value === '2') {
+    divLesao.setAttribute('data-paris', lesaoExtra || '');
+    divLesao.setAttribute('data-loc',   localizacao || '');
+    divLesao.setAttribute('data-numero', numeroExtra || '01');
+    divLesao.setAttribute('data-resseccao', resseccaoExtra || '');
+  }
+  appendToSortable('sortable-alteracao', divLesao);
+}
+
+var LESAO_PARIS_TO_COMPOSTA = {
+  'Pólipo séssil':                'Pólipos sésseis',
+  'Pólipo subpediculado':         'Pólipos subpediculados',
+  'Pólipo pediculado':            'Pólipos pediculados',
+  'Lesão planoelevada':           'Lesões planoelevadas',
+  'Lesão planodeprimida':         'Lesões planodeprimidas',
+  'LST-GH':                       'LSTs-GH',
+  'LST granular nodular mista':   'LSTs granulares nodulares mistas',
+  'LST-NG planoelevada':          'LSTs-NG planoelevadas',
+  'LST-NG pseudodeprimida':       'LSTs-NG pseudodeprimidas'
+};
+
+var LESAO_LOC_TO_SEG = {
+  'ceco':              'ceco',
+  'cólon ascendente':  'ascendente',
+  'ângulo hepático':   'anghep',
+  'cólon transverso':  'transverso',
+  'ângulo esplênico':  'angesp',
+  'cólon descendente': 'descendente',
+  'cólon sigmoide':    'sigmoide',
+  'reto':              'reto'
+};
+
+var LESAO_RESS_TO_COMPOSTA = {
+  '. Polipectomia':                                                'Polipectomias',
+  '. Polipectomia com eletrocauterização':                         'Polipectomias com eletrocauterização',
+  '. Mucosectomia em monobloco':                                   'Mucosectomias em monobloco',
+  '. Ressecção em monobloco por ESD':                              'Ressecções em monobloco por ESD',
+  '. Ressecção em monobloco por técnica híbrida (ESD + mucosectomia)': 'Ressecções em monobloco por técnica híbrida (ESD + mucosectomia)'
+};
+
+var ORDEM_SEGMENTOS = ['ceco','ascendente','anghep','transverso','angesp','descendente','sigmoide','reto'];
+
+var SEG_TO_LOC_DISPLAY = {
+  'ceco':        'ceco',
+  'ascendente':  'cólon ascendente',
+  'anghep':      'ângulo hepático',
+  'transverso':  'cólon transverso',
+  'angesp':      'ângulo esplênico',
+  'descendente': 'cólon descendente',
+  'sigmoide':    'cólon sigmoide',
+  'reto':        'reto'
+};
+
+function gerarConclusoesCompostas() {
+  document.querySelectorAll('#sortable-conclusao .item[data-auto="1"]').forEach(function (el) { el.remove(); });
+
+  var quantidades = (_DB.conclusaoComposta && _DB.conclusaoComposta.quantidades) || {};
+  var grupos = {};
+  document.querySelectorAll('#sortable-alteracao .item[data-paris]').forEach(function (div) {
+    var cb = div.querySelector('input[type="checkbox"]');
+    if (cb && !cb.checked) return;
+    var paris = div.getAttribute('data-paris');
+    var loc   = div.getAttribute('data-loc');
+    var ress  = div.getAttribute('data-resseccao');
+    var num   = parseInt(div.getAttribute('data-numero'), 10) || 1;
+    var seg   = LESAO_LOC_TO_SEG[loc];
+    if (!seg) return;
+    var key = paris + '||' + ress;
+    if (!grupos[key]) grupos[key] = { paris: paris, ress: ress, segmentos: {} };
+    grupos[key].segmentos[seg] = (grupos[key].segmentos[seg] || 0) + num;
+  });
+
+  var keys = Object.keys(grupos);
+  if (keys.length === 0) {
+    if (typeof mostrarToast === 'function') mostrarToast('Nenhuma lesão com dados estruturados encontrada.', '#7a5a1a', 3000);
+    return;
+  }
+
+  keys.forEach(function (key) {
+    var g = grupos[key];
+    var segKeys = ORDEM_SEGMENTOS.filter(function (s) { return g.segmentos[s] > 0; });
+    if (segKeys.length === 0) return;
+    var isPlano = g.paris && g.paris.indexOf('plano') !== -1;
+    var texto;
+
+    if (segKeys.length === 1) {
+      var seg = segKeys[0];
+      var count = g.segmentos[seg];
+      var locDisplay = SEG_TO_LOC_DISPLAY[seg];
+      var numExtraExib = (count === 1) ? '' : String(count).padStart(2, '0') + ' ';
+      texto = '- ' + numExtraExib + g.paris + ' em ' + locDisplay + g.ress + '.';
+      if (isPlano) texto = texto.replace('Polipectomia', 'Ressecção com alça a frio (polipectomia)');
+      if (count !== 1) texto = pluralizar(texto);
+    } else {
+      var lesao2 = LESAO_PARIS_TO_COMPOSTA[g.paris];
+      var ress2  = LESAO_RESS_TO_COMPOSTA[g.ress];
+      if (!lesao2 || !ress2) return;
+      if (isPlano && ress2 === 'Polipectomias') ress2 = 'Ressecções com alça a frio (polipectomia)';
+      var partes = '';
+      ORDEM_SEGMENTOS.forEach(function (s) {
+        var n = g.segmentos[s];
+        if (!n || !quantidades[s]) return;
+        partes += quantidades[s].prefixo.replace('{n}', String(n).padStart(2, '0'));
+      });
+      texto = '- ' + lesao2 + ' (' + partes + '). ' + ress2 + '.';
+      texto = texto.replace(/\( /g, '(').replace(/;\)/g, ')').replace(/cólon /g, '');
+    }
+
+    var div = createCheckboxDiv(texto, 'conclusao');
+    div.setAttribute('data-auto', '1');
+    appendToSortable('sortable-conclusao', div);
+  });
 }
 
 function addParameterdiv() {
@@ -824,8 +938,10 @@ function addParametercanal() {
 }
 
 function addConclusaoCheckbox() {
-  var texto = '- ' + getVal('numero-conc') + ' ' + getVal('lesao-conc') + ' no ' + getVal('local-conc') + '. ' + getVal('resseccao-conc');
-  if (Number(getVal('numero-conc')) > 1) texto = pluralizar(texto);
+  var num = getVal('numero-conc');
+  var numExib = num === '' ? '' : num + ' ';
+  var texto = '- ' + numExib + getVal('lesao-conc') + ' no ' + getVal('local-conc') + '. ' + getVal('resseccao-conc');
+  if (Number(num) > 1) texto = pluralizar(texto);
   appendToSortable('sortable-conclusao', createCheckboxDiv(texto, 'conclusao'));
 }
 

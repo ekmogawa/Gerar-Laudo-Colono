@@ -870,7 +870,6 @@
     <div class="sec-row">
       <div class="sec-label">Divertículos</div>
       <div class="sec-content" id="diverticulo">
-        <div id="sortable-diverticulo" class="sortable-zone"></div>
         <div class="ctrl-row">
           <select id="diver-segmento" style="display:none;">
             <option value="1">1</option><option value="2">&gt;1</option>
@@ -881,6 +880,7 @@
           <span>Frequência:</span>  <select id="diver-freq"></select>
           <button class="btn-add" onclick="addParameterdiv()">＋ Adicionar</button>
         </div>
+        <div id="sortable-diverticulo" class="sortable-zone"></div>
       </div>
     </div>
 
@@ -888,7 +888,6 @@
     <div class="sec-row">
       <div class="sec-label">Canal Anal</div>
       <div class="sec-content" id="canalanal">
-        <div id="sortable-canalanal" class="sortable-zone"></div>
         <div class="ctrl-row">
           <select id="canal-segmento" style="display:none;">
             <option value="1">1</option><option value="2">&gt;1</option>
@@ -897,6 +896,7 @@
           <span>Local:</span>     <select id="local-anal"></select>
           <button class="btn-add" onclick="addParametercanal()">＋ Adicionar</button>
         </div>
+        <div id="sortable-canalanal" class="sortable-zone"></div>
       </div>
     </div>
 
@@ -928,6 +928,7 @@
             <span>Reto:</span>    <select id="numeroreto-conc"></select>
             <span>Ressecção:</span> <select id="resseccao2-conc"></select>
             <button class="btn-add" onclick="addConclusao2Checkbox()">＋</button>
+            <button class="btn-add" onclick="gerarConclusoesCompostas()" title="Gerar a partir das lesões adicionadas (modo Múltiplos achados)">Auto</button>
           </div>
         </div>
 
