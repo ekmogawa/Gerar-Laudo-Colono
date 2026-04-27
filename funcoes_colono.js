@@ -393,8 +393,7 @@ var PLURAIS = {
 };
 
 function pluralizar(texto) {
-  for (var s in PLURAIS) texto = texto.replace(s, PLURAIS[s]);
-  return texto;
+  return Object.keys(PLURAIS).reduce(function (t, s) { return t.replace(s, PLURAIS[s]); }, texto);
 }
 
 // ----------------------------------------------------------
@@ -458,21 +457,32 @@ function popularCheckboxSection(containerId, itens, nomeSortable) {
   });
 }
 
+var _SECOES_COLONO = [
+  { sortable: 'sortable-indicacao',   chave: 'indicacao' },
+  { sortable: 'sortable-equipamento', chave: 'equipamento' },
+  { sortable: 'sortable-sedacao',     chave: 'sedacao' },
+  { sortable: 'sortable-preparo',     chave: 'preparo' },
+  { sortable: 'sortable-exame',       chave: 'exame' },
+  { sortable: 'sortable-conclusao',   chave: 'conclusao' },
+  { sortable: 'sortable-obs',         chave: 'obs' },
+  { sortable: 'sortable-outros',      chave: 'outros' }
+];
+
+var _ZONAS_DRAG = _SECOES_COLONO.map(function (s) { return s.sortable; })
+  .concat(['sortable-alteracao', 'sortable-diverticulo', 'sortable-canalanal']);
+
+function _strParaOpcao(v) { return { valor: v, label: v || '-' }; }
+
 function inicializar() {
   if (window._inicializado) return;
   window._inicializado = true;
 
-  popularCheckboxSection('sortable-indicacao',  _DB.indicacao,  'sortable-indicacao');
-  popularCheckboxSection('sortable-equipamento',_DB.equipamento,'sortable-equipamento');
-  popularCheckboxSection('sortable-sedacao',    _DB.sedacao,    'sortable-sedacao');
-  popularCheckboxSection('sortable-preparo',    _DB.preparo,    'sortable-preparo');
-  popularCheckboxSection('sortable-exame',      _DB.exame,      'sortable-exame');
-  popularCheckboxSection('sortable-conclusao',  _DB.conclusao,  'sortable-conclusao');
-  popularCheckboxSection('sortable-obs',        _DB.obs,        'sortable-obs');
-  popularCheckboxSection('sortable-outros',     _DB.outros,     'sortable-outros');
+  _SECOES_COLONO.forEach(function (s) {
+    popularCheckboxSection(s.sortable, _DB[s.chave], s.sortable);
+  });
 
-  popularSelect('fentanil',  _DB.sedacaoSelects.fentanil.map(function (v) { return { valor: v, label: v || '-' }; }));
-  popularSelect('midazolam', _DB.sedacaoSelects.midazolam.map(function (v) { return { valor: v, label: v || '-' }; }));
+  popularSelect('fentanil',  _DB.sedacaoSelects.fentanil.map(_strParaOpcao));
+  popularSelect('midazolam', _DB.sedacaoSelects.midazolam.map(_strParaOpcao));
 
   popularSelect('localizacao', _DB.lesoes.localizacao);
   popularSelect('lesao',       _DB.lesoes.paris);
@@ -530,11 +540,7 @@ function inicializar() {
 // ----------------------------------------------------------
 
 function inicializarSortable() {
-  [
-    'sortable-indicacao','sortable-equipamento','sortable-sedacao',
-    'sortable-preparo','sortable-exame','sortable-alteracao',
-    'sortable-canalanal','sortable-conclusao','sortable-obs','sortable-outros'
-  ].forEach(function (id) {
+  _ZONAS_DRAG.forEach(function (id) {
     var zone = document.getElementById(id);
     if (zone) ativarZona(zone);
   });
@@ -1155,14 +1161,19 @@ function montarConteudoJS(dbObj) {
     'var DB_PADRAO = ' + JSON.stringify(dbObj, null, 2) + ';\n';
 }
 
+function _valoresDoSelect(id) {
+  var sel = document.getElementById(id);
+  return sel ? Array.from(sel.options).map(function (o) { return o.value; }) : [];
+}
+
 function coletarDB(opts) {
   return {
     indicacao:   serializarSecao('sortable-indicacao', opts),
     equipamento: serializarSecao('sortable-equipamento', opts),
     sedacao:     serializarSecao('sortable-sedacao', opts),
     sedacaoSelects: {
-      fentanil:  Array.from(document.getElementById('fentanil').options).map(function (o) { return o.value; }),
-      midazolam: Array.from(document.getElementById('midazolam').options).map(function (o) { return o.value; })
+      fentanil:  _valoresDoSelect('fentanil'),
+      midazolam: _valoresDoSelect('midazolam')
     },
     preparo:  serializarSecao('sortable-preparo', opts),
     exame:    serializarSecao('sortable-exame', opts),
@@ -1470,23 +1481,28 @@ function montarLaudo() {
   return output;
 }
 
+async function _copiarSaida(output, fontSizePt, msgSucesso) {
+  var html = '<div style="font-family:Arial,sans-serif;font-size:' + fontSizePt + 'pt;">' + output.innerHTML + '</div>';
+  if (navigator.clipboard && window.ClipboardItem) {
+    try {
+      await navigator.clipboard.write([new ClipboardItem({
+        'text/html':  new Blob([html],             { type: 'text/html' }),
+        'text/plain': new Blob([output.innerText], { type: 'text/plain' })
+      })]);
+      mostrarToast(msgSucesso, '#1a3a1a');
+      return;
+    } catch (e) { /* fallback abaixo */ }
+  }
+  copiarPorSelecao(output);
+  mostrarToast(msgSucesso, '#1a3a1a');
+}
+
 function generateText() {
   var output = montarLaudo();
   if (!output) return;
   try { output.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) {}
   salvarUltimoLaudo();
-  var htmlFormatado = '<div style="font-family:Arial,sans-serif;font-size:12pt;">' + output.innerHTML + '</div>';
-
-  if (navigator.clipboard && window.ClipboardItem) {
-    navigator.clipboard.write([new ClipboardItem({
-      'text/html':  new Blob([htmlFormatado], { type: 'text/html' }),
-      'text/plain': new Blob([output.innerText],  { type: 'text/plain' })
-    })]).then(function () {
-      mostrarToast('📋 Laudo gerado e copiado!', '#1a3a1a');
-    }).catch(function () { copiarPorSelecao(output); });
-  } else {
-    copiarPorSelecao(output);
-  }
+  _copiarSaida(output, 12, '📋 Laudo gerado e copiado!');
 }
 
 function copiarPorSelecao(output) {
@@ -1498,7 +1514,6 @@ function copiarPorSelecao(output) {
   sel.addRange(range);
   document.execCommand('copy');
   sel.removeAllRanges();
-  mostrarToast('📋 Laudo gerado e copiado!', '#1a3a1a');
 }
 
 // ----------------------------------------------------------
@@ -1506,36 +1521,11 @@ function copiarPorSelecao(output) {
 // ----------------------------------------------------------
 
 function copiarConteudo() {
-  var output = document.getElementById('output');
-  var htmlFormatado = '<div style="font-family:Arial,sans-serif;font-size:12pt;">' + output.innerHTML + '</div>';
-  if (navigator.clipboard && window.ClipboardItem) {
-    navigator.clipboard.write([new ClipboardItem({
-      'text/html':  new Blob([htmlFormatado], { type: 'text/html' }),
-      'text/plain': new Blob([output.innerText], { type: 'text/plain' })
-    })]).then(function () { mostrarToast('📄 Texto copiado!'); })
-       .catch(function () { copiarPorSelecao(output); mostrarToast('📄 Texto copiado!'); });
-  } else {
-    copiarPorSelecao(output);
-    mostrarToast('📄 Texto copiado!');
-  }
+  _copiarSaida(document.getElementById('output'), 12, '📄 Texto copiado!');
 }
 
-async function copiarFormatado() {
-  var output = document.getElementById('output');
-  var htmlParaCopiar = '<div style="font-family:Arial,sans-serif;font-size:11pt;">' + output.innerHTML + '</div>';
-
-  if (navigator.clipboard && window.ClipboardItem) {
-    try {
-      await navigator.clipboard.write([new ClipboardItem({
-        'text/html':  new Blob([htmlParaCopiar], { type: 'text/html' }),
-        'text/plain': new Blob([output.innerText], { type: 'text/plain' })
-      })]);
-      mostrarToast('🖨️ Copiado em Arial 11!');
-      return;
-    } catch (e) { /* fallback abaixo */ }
-  }
-  copiarPorSelecao(output);
-  mostrarToast('🖨️ Copiado em Arial 11!');
+function copiarFormatado() {
+  _copiarSaida(document.getElementById('output'), 11, '🖨️ Copiado em Arial 11!');
 }
 
 // ----------------------------------------------------------
