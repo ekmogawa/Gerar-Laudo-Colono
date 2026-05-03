@@ -14,7 +14,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 
   <script src="firebase-config.js"></script>
-  <script src="config.js"></script>
   <script src="dados_colono.js"></script>
   <script src="funcoes_colono.js"></script>
   <script src="historico_colono.js"></script>
@@ -81,17 +80,6 @@
       text-transform: none;
     }
 
-    /* ── GITHUB STATUS — legível no header escuro ── */
-    #github-status {
-      font-family: 'DM Mono', monospace;
-      font-size: 11px;
-      color: rgba(255,255,255,.88);   /* branco suave — legível em qualquer estado */
-      background: rgba(255,255,255,.1);
-      padding: 3px 11px;
-      border-radius: 20px;
-      border: 1px solid rgba(255,255,255,.18);
-    }
-
     /* ── TOOLBAR (legacy — escondida quando sidebar ativa) ── */
     .toolbar {
       background: var(--panel);
@@ -101,6 +89,19 @@
       align-items: center;
       gap: 5px;
       flex-wrap: wrap;
+      box-shadow: var(--shadow);
+    }
+
+    /* Toolbar fixa no topo quando lateral ativa */
+    body.lateral-on .toolbar {
+      display: flex;
+      position: fixed;
+      top: 50px; /* abaixo do header */
+      left: 0;
+      right: 0;
+      z-index: 80; /* abaixo do header (200), acima da sidebar (90) */
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
       box-shadow: var(--shadow);
     }
 
@@ -118,6 +119,10 @@
       z-index: 90;
       overflow-y: auto;
     }
+
+    /* Sidebar desaparece quando lateral ativa */
+    body.lateral-on .sidebar { display: none; }
+    body.lateral-on { padding-left: 0; }
     .sidebar .sb-brand {
       font-family: 'DM Mono', monospace; font-size: 11px;
       color: var(--ink3); padding: 0 8px 8px; letter-spacing: .08em;
@@ -173,6 +178,7 @@
       grid-template-columns: 1460px minmax(380px, 1fr);
       gap: 16px;
       align-items: start;
+      padding-top: 60px; /* espaço para toolbar fixa */
     }
     /* Janelas mais estreitas: proporção 2/3 seções e 1/3 caixa */
     @media (max-width: 1900px) {
@@ -202,7 +208,10 @@
     }
 
     /* Footer alinhado com a coluna das checkboxes quando lateral on */
-    body.lateral-on .wrap > footer { grid-column: 1 / 2; }
+    /* Removido pois footer agora é fixed */
+
+    /* Botões acima da caixa de texto invisíveis quando lateral on */
+    body.lateral-on .output-bar { display: none; }
 
     /* Botão "Sair" no header — aparência clara em fundo escuro */
     #user-status button {
@@ -263,6 +272,11 @@
       max-width: 1500px;
       margin: 0 auto;
       padding: 14px 20px 0;
+    }
+    .main-col {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
     }
 
     /* ── MOBILE / TABLET ── */
@@ -498,36 +512,6 @@
     .popup select { font-size: 13.5px; padding: 5px 8px; margin-bottom: 2px; }
     .popup-footer { display: flex; gap: 7px; margin-top: 14px; flex-wrap: wrap; }
 
-    /* ── MODAL SENHA ── */
-    #senha-overlay {
-      display: none;
-      position: fixed; inset: 0;
-      background: rgba(5,20,12,.5);
-      z-index: 99998;
-      align-items: center; justify-content: center;
-      backdrop-filter: blur(4px);
-    }
-    #senha-overlay.show { display: flex; }
-    #senha-box {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 28px 32px;
-      min-width: 320px;
-      text-align: center;
-      box-shadow: var(--shadow-m);
-    }
-    #senha-box p { font-size: 14px; font-weight: 500; color: var(--ink); margin-bottom: 14px; }
-    #senha-box input[type=password] {
-      font-family: 'DM Sans', sans-serif;
-      width: 100%; padding: 8px 12px; font-size: 14px;
-      border: 1px solid var(--border2); border-radius: 6px;
-      background: var(--row-alt); color: var(--ink);
-      margin-bottom: 14px; transition: border-color var(--t);
-    }
-    #senha-box input:focus { outline: none; border-color: var(--accent); }
-    #senha-box .btns { display: flex; gap: 7px; justify-content: center; }
-
     /* ── OUTPUT ── */
     .output-wrap {
       margin-top: 12px;
@@ -538,16 +522,43 @@
       overflow: hidden;
     }
     .output-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 8px;
+      padding: 8px 14px;
+      padding-top: 16px;
       background: var(--row-alt);
       border-bottom: 1px solid var(--border);
+    }
+    .text-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 4px;
       padding: 8px 14px;
-      display: flex; gap: 6px; flex-wrap: wrap;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border2);
+    }
+    .text-toolbar select {
+      font-size: 12px;
+      padding: 2px 4px;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+    }
+    .text-toolbar button {
+      font-size: 12px;
+      padding: 2px 6px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    .text-toolbar button:hover {
+      background: var(--row-alt);
     }
     #output {
-      font-family: Arial, sans-serif;
-      font-size: 12pt;
       line-height: 1.3;
-      padding: 16px 20px;
+      padding: 0 16px 16px;
       min-height: 220px;
       outline: none;
       white-space: pre-wrap;
@@ -573,12 +584,16 @@
     #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
 
     footer {
+      position: relative;
       text-align: center;
       padding: 10px 20px;
       font-size: 11px;
       color: var(--ink3);
       font-family: 'DM Mono', monospace;
       letter-spacing: .04em;
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      z-index: 1;
     }
 
     ::-webkit-scrollbar { width: 5px; height: 5px; }
@@ -687,12 +702,6 @@
   <div class="sb-section-label">Geral</div>
   <button class="btn-save" onclick="toggleMenuSalvar(event)">⚙ Opções ▾</button>
   <button class="btn-ghost" id="btn-caixa-lateral" onclick="toggleCaixaLateral(); refrescarMenuSalvar()" title="Caixa de texto lateral"><span id="sb-state-lateral" hidden></span>📐 Caixa Lateral</button>
-  <div class="sb-submenu" id="sb-menu-salvar">
-    <button onclick="salvarDados(); fecharMenuSalvar()">💾 Salvar agora</button>
-    <button onclick="toggleAutoSave(); refrescarMenuSalvar()">🔄 Auto-save <span class="sb-toggle-state" id="sb-state-autosave">OFF</span></button>
-    <button onclick="salvarBackupGitHub(); fecharMenuSalvar()">☁ Backup no GitHub</button>
-    <button onclick="window.open('https://ekmogawa.github.io/Gerar-Laudo-Importador/?tipo=colono', '_blank', 'noopener'); fecharMenuSalvar()">📥 Importar laudos Word</button>
-  </div>
 
   <div class="sb-divider"></div>
   <div class="sb-section-label">Histórico</div>
@@ -718,24 +727,30 @@
   <h1>📑 <em>Gerador de Laudo:</em> COLONOSCOPIA</h1>
   <div class="header-right">
     <span id="save-indicator"></span>
-    <span id="github-status"></span>
     <div id="user-status"></div>
   </div>
 </header>
 
 <!-- TOOLBAR (legacy — visível só no mobile) -->
 <div class="toolbar">
-  <button class="btn-save"  onclick="salvarDados()">💾 Salvar</button>
-  <button class="btn-ghost" id="btn-autosave-mob" onclick="toggleAutoSave()">🔄</button>
-  <button class="btn-ghost" onclick="desfazer()" title="Ctrl+Z">↶</button>
-  <button class="btn-ghost" onclick="refazer()" title="Ctrl+Y">↷</button>
-  <button class="btn-ghost" onclick="recuperarUltimoLaudo()">↺</button>
-  <button class="btn-ghost" onclick="uncheckAll()">✕</button>
-  <button class="btn-ghost" onclick="showPopup()">✏️</button>
-  <button class="btn-red"   onclick="deleteCheckedCheckboxes()">🗑</button>
-  <button class="btn-ghost" onclick="showCreatePopup()">＋</button>
-  <button class="btn-muted" onclick="salvarBackupGitHub()">☁</button>
-  <button class="btn-ghost" onclick="window.open('https://ekmogawa.github.io/Gerar-Laudo-Importador/?tipo=colono', '_blank', 'noopener')" title="Importar laudos Word">📥</button>
+  <button class="btn-ghost" onclick="toggleCaixaLateral(); refrescarMenuSalvar()" title="Caixa de texto lateral"><span id="sb-state-lateral-mob" hidden></span>📐 Caixa Lateral</button>
+  <button class="btn-save"  onclick="toggleMenuSalvar(event)">⚙ Opções ▾</button>
+  <button class="btn-ghost" onclick="desfazer()" title="Desfazer (Ctrl+Z)">↶ Desfazer</button>
+  <button class="btn-ghost" onclick="refazer()" title="Refazer (Ctrl+Y)">↷ Refazer</button>
+  <button class="btn-ghost" onclick="recuperarUltimoLaudo()" title="Restaurar o estado do último laudo gerado nesta sessão">↺ Último laudo</button>
+  <button class="btn-ghost" onclick="showPopup()">✏️ Editar</button>
+  <button class="btn-red"   onclick="deleteCheckedCheckboxes()">🗑 Excluir</button>
+  <button class="btn-ghost" onclick="showCreatePopup()">＋ Criar</button>
+  <button class="btn-primary" onclick="copiarConteudo()" style="margin-left: auto;">📄 Copiar texto</button>
+  <button class="btn-muted"   onclick="copiarFormatado()">🖨 Fonte 11</button>
+  <button class="btn-ghost" onclick="uncheckAll()">✕ Limpar</button>
+</div>
+
+<!-- Submenu flutuante "Opções ▾" -->
+<div class="sb-submenu" id="sb-menu-salvar">
+  <button onclick="salvarDados(); fecharMenuSalvar()">💾 Salvar agora</button>
+  <button onclick="toggleAutoSave(); refrescarMenuSalvar()">🔄 Auto-save <span class="sb-toggle-state" id="sb-state-autosave">OFF</span></button>
+  <button onclick="window.open('https://ekmogawa.github.io/Gerar-Laudo-Importador/?tipo=colono', '_blank', 'noopener'); fecharMenuSalvar()">📥 Importar laudos Word</button>
 </div>
 
 <div id="toast"></div>
@@ -778,20 +793,9 @@
   </div>
 </div>
 
-<!-- MODAL SENHA -->
-<div id="senha-overlay">
-  <div id="senha-box">
-    <p id="senha-msg">🔐 Digite a senha para ativar o GitHub:</p>
-    <input type="password" id="senha-input" placeholder="Senha" autocomplete="current-password">
-    <div class="btns">
-      <button class="btn-primary" id="senha-ok">Confirmar</button>
-      <button class="btn-ghost"   id="senha-cancelar">Cancelar</button>
-    </div>
-  </div>
-</div>
-
 <div class="wrap">
-  <div class="sections-table">
+  <div class="main-col">
+    <div class="sections-table">
 
     <!-- INDICAÇÃO -->
     <div class="sec-row">
@@ -956,6 +960,9 @@
 
   </div><!-- /sections-table -->
 
+    <footer>Gerador de Laudo de Colonoscopia · 2026 · Eduardo K. M. Ogawa</footer>
+  </div><!-- /main-col -->
+
   <!-- OUTPUT -->
   <div class="output-wrap">
     <div class="output-bar">
@@ -963,10 +970,27 @@
       <button class="btn-muted"   onclick="copiarFormatado()">🖨 Fonte 11</button>
       <button class="btn-muted"   onclick="uncheckAll()">✕ Limpar</button>
     </div>
+    <div class="text-toolbar">
+      <select onchange="applyFont(this.value)">
+        <option value="Arial">Arial</option>
+        <option value="Times New Roman">Times</option>
+        <option value="'Courier New'">Courier</option>
+        <option value="Georgia">Georgia</option>
+      </select>
+      <select onchange="applySize(this.value)">
+        <option value="1">8pt</option>
+        <option value="2">10pt</option>
+        <option value="3">12pt</option>
+        <option value="4">14pt</option>
+        <option value="5">18pt</option>
+        <option value="6">24pt</option>
+      </select>
+      <button onclick="applyBold()" title="Negrito"><b>B</b></button>
+      <button onclick="applyItalic()" title="Itálico"><i>I</i></button>
+      <button onclick="applyUnderline()" title="Sublinhado"><u>U</u></button>
+    </div>
     <div id="output" contenteditable="true"></div>
   </div>
-
-  <footer>Gerador de Laudo de Colonoscopia · 2026 · Eduardo K. M. Ogawa</footer>
 </div><!-- /wrap -->
 
 <script>

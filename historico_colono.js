@@ -172,8 +172,8 @@ function _instalarHistorico() {
     if (!t) return;
     if (t.type === 'checkbox' || t.tagName === 'SELECT' ||
         (t.tagName === 'INPUT' && /^(text|number|search|email|url|tel)$/i.test(t.type))) {
-      if (typeof agendarAutoSave === 'function') agendarAutoSave();
-      else { registrarSnapshot(); _agendarLiveLaudo(); }
+      registrarSnapshot();
+      _agendarLiveLaudo();
     }
   });
 
@@ -193,8 +193,8 @@ function _instalarHistorico() {
           var n = nodos[j];
           if (n.nodeType !== 1) continue;
           if (n.classList && (n.classList.contains('item') || n.classList.contains('achado-bloco'))) {
-            if (typeof agendarAutoSave === 'function') agendarAutoSave();
-            else { registrarSnapshot(); _agendarLiveLaudo(); }
+            registrarSnapshot();
+            _agendarLiveLaudo();
             return;
           }
         }
