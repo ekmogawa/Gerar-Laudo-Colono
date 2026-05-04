@@ -43,6 +43,7 @@ function _histRestaurar(snapJson) {
   _histAplicando = true;
   try {
     _DB = JSON.parse(JSON.stringify(estado.db));
+    if (typeof _repararDB === 'function') _repararDB(_DB);
     window._inicializado = false;
     inicializar();
     (estado.checks || []).forEach(function (c) {

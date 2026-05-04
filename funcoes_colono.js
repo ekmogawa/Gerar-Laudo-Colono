@@ -11,7 +11,7 @@ var _auth      = null;
 var _firestore = null;
 var _user      = null;
 var _modoVisitante  = false;
-var _CADASTRO_ABERTO = false;
+var _CADASTRO_ABERTO = true;
 
 function inicializarFirebase() {
   if (typeof FIREBASE_CONFIG === 'undefined' ||
@@ -47,14 +47,22 @@ function inicializarFirebase() {
     _auth.onAuthStateChanged(function (user) {
       _user = user;
       _modoVisitante = !!(user && user.isAnonymous);
+      document.body.classList.toggle('modo-visitante', _modoVisitante);
       if (user) {
         ocultarModalAuth();
         atualizarStatusUsuario();
         carregarDados();
+        // Mostrar botão admin apenas para o administrador
+        var btnAdmin = document.getElementById('btn-admin-codigos');
+        if (btnAdmin) {
+          btnAdmin.style.display = (user.email === 'ekmogawa@gmail.com') ? '' : 'none';
+        }
       } else {
         _modoVisitante = false;
         mostrarModalAuth();
         atualizarStatusUsuario();
+        var btnAdmin = document.getElementById('btn-admin-codigos');
+        if (btnAdmin) btnAdmin.style.display = 'none';
       }
     });
 
@@ -136,20 +144,54 @@ async function registrarUsuario() {
   var btn = document.getElementById('btn-cadastrar');
   btn.disabled = true;
 
+  // 1. Validar o código no Firestore (leitura pública — precisa de regra adequada)
+  var codigoDoc;
   try {
-    var codigoDoc = await _firestore.collection('codigos').doc(codigo).get();
-    if (!codigoDoc.exists || codigoDoc.data().usado) {
-      _mostrarErroAuth('Código de acesso inválido ou já utilizado.');
-      return;
+    codigoDoc = await _firestore.collection('codigos').doc(codigo).get();
+  } catch (e) {
+    console.error('[registro] Erro ao ler código:', e);
+    btn.disabled = false;
+    if (e.code === 'permission-denied') {
+      _mostrarErroAuth('As regras do Firestore não permitem validar o código. O administrador precisa liberar leitura pública na coleção "codigos".');
+    } else {
+      _mostrarErroAuth('Erro de conexão ao validar o código. Tente novamente.');
     }
+    return;
+  }
+
+  if (!codigoDoc.exists || codigoDoc.data().usado) {
+    _mostrarErroAuth('Código de acesso inválido ou já utilizado.');
+    btn.disabled = false;
+    return;
+  }
+
+  // 2. Criar a conta
+  try {
     var cred = await _auth.createUserWithEmailAndPassword(email, senha);
+  } catch (e) {
+    _mostrarErroAuth(_MSGS_AUTH[e.code] || e.message);
+    btn.disabled = false;
+    return;
+  }
+
+  // 3. Marcar código como usado
+  try {
     await _firestore.collection('codigos').doc(codigo).update({
       usado:    true,
       usadoPor: cred.user.uid,
       usadoEm:  firebase.firestore.FieldValue.serverTimestamp()
     });
   } catch (e) {
-    _mostrarErroAuth(_MSGS_AUTH[e.code] || e.message);
+    console.error('[registro] Conta criada mas FALHA CRÍTICA ao marcar código:', e);
+    // Se falhou ao marcar, deleta a conta recém-criada pra evitar uso indevido
+    try { await cred.user.delete(); } catch (e2) {}
+    btn.disabled = false;
+    if (e.code === 'permission-denied') {
+      _mostrarErroAuth('❌ Código não pôde ser validado. O administrador precisa ajustar as regras do Firestore para permitir escrita de usuários autenticados na coleção "codigos".');
+    } else {
+      _mostrarErroAuth('❌ Erro ao marcar código como usado: ' + e.message);
+    }
+    return;
   } finally {
     btn.disabled = false;
   }
@@ -252,6 +294,54 @@ function atualizarIndicadorSalvo() {
 // FIRESTORE — CARREGAR / SALVAR
 // ----------------------------------------------------------
 
+function _isOpcaoValida(v) {
+  if (typeof v === 'string') return true;
+  if (typeof v === 'number') return true;
+  return v && typeof v === 'object' && typeof v.valor !== 'undefined';
+}
+
+function _arrayOpcoesOk(arr) {
+  return Array.isArray(arr) && arr.length > 0 && arr.every(_isOpcaoValida);
+}
+
+// Repara grupos de options no _DB. Se alguma chave estiver ausente ou malformada,
+// restaura a partir de DB_PADRAO. Retorna true se houve alguma alteração.
+function _repararDB(db) {
+  if (typeof DB_PADRAO === 'undefined') return false;
+  var alterado = false;
+
+  // sedacaoSelects: fentanil/midazolam (strings ou {valor,...})
+  var pSed = DB_PADRAO.sedacaoSelects;
+  if (pSed) {
+    var s = db.sedacaoSelects;
+    var sedOk = s && _arrayOpcoesOk(s.fentanil) && _arrayOpcoesOk(s.midazolam);
+    if (!sedOk) {
+      db.sedacaoSelects = JSON.parse(JSON.stringify(pSed));
+      alterado = true;
+    }
+  }
+
+  // Grupos de options dos construtores via dropdown
+  var grupos = ['lesoes', 'diverticulos', 'canalAnal', 'conclusaoSimples', 'conclusaoComposta'];
+  grupos.forEach(function (g) {
+    var padraoGrupo = DB_PADRAO[g];
+    if (!padraoGrupo) return;
+    if (!db[g] || typeof db[g] !== 'object') {
+      db[g] = JSON.parse(JSON.stringify(padraoGrupo));
+      alterado = true;
+      return;
+    }
+    Object.keys(padraoGrupo).forEach(function (k) {
+      if (!_arrayOpcoesOk(db[g][k])) {
+        db[g][k] = JSON.parse(JSON.stringify(padraoGrupo[k]));
+        alterado = true;
+      }
+    });
+  });
+
+  return alterado;
+}
+
 async function carregarDados() {
   if (!_user || !_firestore) return;
   mostrarToast('⌛ Carregando…', '#1a2e3a', 8000);
@@ -263,6 +353,7 @@ async function carregarDados() {
         ? vDoc.data().dbColono
         : (typeof DB_PADRAO !== 'undefined' ? DB_PADRAO : {});
       _DB = JSON.parse(JSON.stringify(vDados));
+      _repararDB(_DB);
       window._inicializado = false;
       inicializar();
       mostrarToast('👤 Modo visitante — somente leitura', '#1a3a5a', 3500);
@@ -289,6 +380,12 @@ async function carregarDados() {
       );
     }
     _DB = JSON.parse(JSON.stringify(dados));
+    if (_repararDB(_DB)) {
+      _firestore.collection('users').doc(_user.uid).set(
+        { dbColono: _DB, atualizadoEm: firebase.firestore.FieldValue.serverTimestamp() },
+        { merge: true }
+      ).catch(function (e) { console.warn('[reparo DB]', e); });
+    }
     window._inicializado = false;
     inicializar();
     mostrarToast('✓ Dados carregados.', '#1a3a1a', 2000);
@@ -296,6 +393,105 @@ async function carregarDados() {
     console.error('[carregarDados]', e);
     mostrarToast('❌ Erro ao carregar: ' + e.message, '#7a1a1a', 10000);
   }
+}
+
+// ----------------------------------------------------------
+// SERIALIZAR DOM → objeto JS
+// ----------------------------------------------------------
+
+var IDS_CONTROLE = new Set([
+  'polipos','diver-sortable','canal-sortable','sedacao-dinamico',
+  'alteracao-conc-sortable-conclusao','alteracoes-conc-sortable-conclusao'
+]);
+
+function serializarSecao(containerId, opts) {
+  opts = opts || {};
+  var container = document.getElementById(containerId);
+  if (!container) return [];
+  var itens = [];
+  container.querySelectorAll(':scope > .item').forEach(function (div) {
+    if (opts.semDinamicos && div.classList.contains('item-dinamico')) return;
+    if (div.getAttribute('data-sep') === '1') { itens.push({ separador: true }); return; }
+    if (div.getAttribute('data-ph')) return;
+    var cb = div.querySelector('input[type="checkbox"]');
+    if (!cb || IDS_CONTROLE.has(cb.id) || IDS_CONTROLE.has(cb.name)) return;
+    var label = div.querySelector('label');
+    var nome  = label ? label.innerText.trim() : cb.name;
+    if (!nome) return;
+    var item = { nome: nome };
+    var idPadrao = nome + '-' + containerId;
+    if (cb.id && cb.id !== idPadrao) item.id = cb.id;
+    item.valor = cb.value;
+    itens.push(item);
+  });
+  return itens;
+}
+
+function serializarSelect(id) {
+  var sel = document.getElementById(id);
+  if (!sel) return [];
+  return Array.from(sel.options).map(function (opt) {
+    var obj   = { valor: opt.value, label: opt.text };
+    var extra = opt.getAttribute('data-extra');
+    if (extra !== null) obj.extra = extra;
+    return obj;
+  });
+}
+
+var _SECOES_COLONO_SALVAR = [
+  { sortable: 'sortable-indicacao',   chave: 'indicacao' },
+  { sortable: 'sortable-equipamento', chave: 'equipamento' },
+  { sortable: 'sortable-sedacao',     chave: 'sedacao' },
+  { sortable: 'sortable-preparo',     chave: 'preparo' },
+  { sortable: 'sortable-exame',       chave: 'exame' },
+  { sortable: 'sortable-conclusao',   chave: 'conclusao' },
+  { sortable: 'sortable-obs',         chave: 'obs' },
+  { sortable: 'sortable-outros',      chave: 'outros' }
+];
+
+function coletarDB(opts) {
+  var db = {
+    sedacaoSelects: {
+      fentanil:  serializarSelect('fentanil'),
+      midazolam: serializarSelect('midazolam')
+    },
+    lesoes: {
+      localizacao: serializarSelect('localizacao'),
+      paris:       serializarSelect('lesao'),
+      numero:      serializarSelect('numero'),
+      tamanho:     serializarSelect('tamanho'),
+      ateTamanho:  serializarSelect('atetamanho'),
+      kudo:        serializarSelect('kudo'),
+      vasc:        serializarSelect('vasc'),
+      jnet:        serializarSelect('jnet'),
+      resseccao:   serializarSelect('resseccao'),
+      resseccao3:  serializarSelect('resseccao3'),
+      hemostasia:  serializarSelect('hemostasia')
+    },
+    diverticulos: {
+      local:      serializarSelect('diver-local'),
+      local2:     serializarSelect('diver-local2'),
+      frequencia: serializarSelect('diver-freq')
+    },
+    canalAnal: {
+      alteracao: serializarSelect('alt-anal'),
+      local:     serializarSelect('local-anal')
+    },
+    conclusaoSimples: {
+      numero:    serializarSelect('numero-conc'),
+      lesao:     serializarSelect('lesao-conc'),
+      local:     serializarSelect('local-conc'),
+      resseccao: serializarSelect('resseccao-conc')
+    },
+    conclusaoComposta: {
+      lesao:       serializarSelect('lesao2-conc'),
+      resseccao:   serializarSelect('resseccao2-conc'),
+      quantidades: (_DB && _DB.conclusaoComposta && _DB.conclusaoComposta.quantidades)
+        || ((typeof DB_PADRAO !== 'undefined' && DB_PADRAO.conclusaoComposta) ? DB_PADRAO.conclusaoComposta.quantidades : {})
+    }
+  };
+  _SECOES_COLONO_SALVAR.forEach(function (s) { db[s.chave] = serializarSecao(s.sortable, opts); });
+  return db;
 }
 
 async function salvarDados() {
@@ -429,6 +625,156 @@ function popularSelect(id, opcoes) {
   });
 }
 
+// ----------------------------------------------------------
+// EDITOR DE OPÇÕES DE DROPDOWN
+// ----------------------------------------------------------
+
+var _editingOptions = null;
+
+function _toggleEditOptsMode() {
+  if (_modoVisitante) {
+    mostrarToast('👤 Modo visitante — edição não permitida.', '#7a4000', 4000);
+    return;
+  }
+  var ligado = document.body.classList.toggle('mostrar-edit-opts');
+  if (ligado) {
+    document.body.classList.remove('edit-opts-wiggling');
+    void document.body.offsetWidth; // força reflow para reiniciar animação
+    document.body.classList.add('edit-opts-wiggling');
+    setTimeout(function () { document.body.classList.remove('edit-opts-wiggling'); }, 750);
+  }
+}
+
+function editarOptions(selectId, titulo, dbGroup, dbKey, temExtra) {
+  if (_modoVisitante) {
+    mostrarToast('👤 Modo visitante — edição não permitida.', '#7a4000', 4000);
+    return;
+  }
+  if (!_DB[dbGroup]) _DB[dbGroup] = {};
+  if (!Array.isArray(_DB[dbGroup][dbKey])) _DB[dbGroup][dbKey] = [];
+
+  _editingOptions = { selectId: selectId, dbGroup: dbGroup, dbKey: dbKey, temExtra: !!temExtra };
+  document.getElementById('popup-edit-options-title').textContent = '✎ ' + titulo;
+
+  _renderEditorOptions(_DB[dbGroup][dbKey]);
+  document.getElementById('popup-edit-options').style.display = 'block';
+  document.getElementById('backdrop').classList.add('show');
+}
+
+function _renderEditorOptions(arr) {
+  var body = document.getElementById('popup-edit-options-body');
+  body.innerHTML = '';
+  arr.forEach(function (op) { body.appendChild(_criarLinhaEditorOption(op)); });
+
+  var addBtn = document.createElement('button');
+  addBtn.className = 'btn-add';
+  addBtn.style.marginTop = '10px';
+  addBtn.textContent = '＋ Adicionar opção';
+  addBtn.onclick = function () {
+    body.insertBefore(_criarLinhaEditorOption({ valor: '', label: '', extra: _editingOptions.temExtra ? '' : undefined }), addBtn);
+  };
+  body.appendChild(addBtn);
+}
+
+function _criarLinhaEditorOption(op) {
+  var temExtra = _editingOptions && _editingOptions.temExtra;
+  var row = document.createElement('div');
+  row.className = 'opt-editor-row';
+
+  var labelIn = document.createElement('input');
+  labelIn.type = 'text';
+  labelIn.className = 'opt-label-in';
+  labelIn.placeholder = 'Label';
+  labelIn.value = (op && op.label) || '';
+
+  var valorIn = document.createElement('input');
+  valorIn.type = 'text';
+  valorIn.className = 'opt-valor-in';
+  valorIn.placeholder = 'Texto inserido no laudo';
+  valorIn.value = (op && op.valor !== undefined) ? op.valor : '';
+
+  row.appendChild(labelIn);
+  row.appendChild(valorIn);
+
+  if (temExtra) {
+    var extraIn = document.createElement('input');
+    extraIn.type = 'text';
+    extraIn.className = 'opt-extra-in';
+    extraIn.placeholder = 'Extra';
+    extraIn.value = (op && op.extra !== undefined) ? op.extra : '';
+    row.appendChild(extraIn);
+  }
+
+  var btnUp = document.createElement('button');
+  btnUp.className = 'opt-btn'; btnUp.textContent = '↑';
+  btnUp.onclick = function () {
+    var prev = row.previousElementSibling;
+    if (prev && prev.classList.contains('opt-editor-row')) row.parentNode.insertBefore(row, prev);
+  };
+  var btnDown = document.createElement('button');
+  btnDown.className = 'opt-btn'; btnDown.textContent = '↓';
+  btnDown.onclick = function () {
+    var next = row.nextElementSibling;
+    if (next && next.classList.contains('opt-editor-row')) row.parentNode.insertBefore(next, row);
+  };
+  var btnRm = document.createElement('button');
+  btnRm.className = 'opt-btn opt-btn-rm'; btnRm.textContent = '✕';
+  btnRm.onclick = function () { row.remove(); };
+
+  row.appendChild(btnUp);
+  row.appendChild(btnDown);
+  row.appendChild(btnRm);
+  return row;
+}
+
+function salvarOptionsEditadas() {
+  if (!_editingOptions) return;
+  var rows = document.querySelectorAll('#popup-edit-options-body .opt-editor-row');
+  var novoArr = [];
+  rows.forEach(function (row) {
+    var label = row.querySelector('.opt-label-in').value;
+    var valor = row.querySelector('.opt-valor-in').value;
+    if (label === '' && valor === '') return; // ignora linha vazia
+    var op = { valor: valor, label: label };
+    if (_editingOptions.temExtra) {
+      var ex = row.querySelector('.opt-extra-in');
+      if (ex) op.extra = ex.value;
+    }
+    novoArr.push(op);
+  });
+
+  if (novoArr.length === 0) {
+    mostrarToast('⚠ Pelo menos uma opção é necessária.', '#7a4000', 3500);
+    return;
+  }
+
+  _DB[_editingOptions.dbGroup][_editingOptions.dbKey] = novoArr;
+
+  var sel = document.getElementById(_editingOptions.selectId);
+  var valorAnterior = sel ? sel.value : null;
+  popularSelect(_editingOptions.selectId, novoArr);
+  if (sel && valorAnterior !== null) {
+    var existe = Array.from(sel.options).some(function (o) { return o.value === valorAnterior; });
+    if (existe) sel.value = valorAnterior;
+  }
+
+  fecharTodosPopups();
+  _editingOptions = null;
+  salvarDados();
+}
+
+function restaurarOptionsPadrao() {
+  if (!_editingOptions) return;
+  var padraoGrupo = (typeof DB_PADRAO !== 'undefined') ? DB_PADRAO[_editingOptions.dbGroup] : null;
+  var padrao = padraoGrupo ? padraoGrupo[_editingOptions.dbKey] : null;
+  if (!padrao) {
+    mostrarToast('⚠ Sem padrão definido para esta lista.', '#7a4000', 3500);
+    return;
+  }
+  if (!confirm('Restaurar as opções para o padrão? Suas edições atuais nesta lista serão descartadas.')) return;
+  _renderEditorOptions(JSON.parse(JSON.stringify(padrao)));
+}
+
 function popularCheckboxSection(containerId, itens, nomeSortable) {
   var container = document.getElementById(containerId);
   if (!container) return;
@@ -471,7 +817,15 @@ var _SECOES_COLONO = [
 var _ZONAS_DRAG = _SECOES_COLONO.map(function (s) { return s.sortable; })
   .concat(['sortable-alteracao', 'sortable-diverticulo', 'sortable-canalanal']);
 
-function _strParaOpcao(v) { return { valor: v, label: v || '-' }; }
+function _strParaOpcao(v) {
+  if (v && typeof v === 'object' && 'valor' in v) return v;
+  return { valor: v, label: (v === '' || v == null) ? '-' : String(v) };
+}
+
+function _tamanhoParaOpcao(v) {
+  if (v && typeof v === 'object' && 'valor' in v) return v;
+  return { valor: String(v), label: v + 'mm' };
+}
 
 function inicializar() {
   if (window._inicializado) return;
@@ -487,7 +841,7 @@ function inicializar() {
   popularSelect('localizacao', _DB.lesoes.localizacao);
   popularSelect('lesao',       _DB.lesoes.paris);
   popularSelect('numero',      _DB.lesoes.numero);
-  popularSelect('tamanho',     _DB.lesoes.tamanho.map(function (v) { return { valor: String(v), label: v + 'mm' }; }));
+  popularSelect('tamanho',     _DB.lesoes.tamanho.map(_tamanhoParaOpcao));
   popularSelect('atetamanho',  _DB.lesoes.ateTamanho);
   popularSelect('kudo',        _DB.lesoes.kudo);
   popularSelect('vasc',        _DB.lesoes.vasc);
@@ -741,8 +1095,13 @@ function inicializarMultiplosAchados() {
 // ----------------------------------------------------------
 
 function addParametersedacao() {
-  var texto = 'Fentanil ' + getVal('fentanil') + ' + Midazolam ' + getVal('midazolam') +
-    ' + Propofol titulado IV.<br>Suplementação de O2 por catéter nasal a 3 L/min.<br>Monitorização de oximetria de pulso e PNI.';
+  var fentanil  = document.getElementById('fentanil').value;
+  var midazolam = document.getElementById('midazolam').value;
+  var midazolamTxt = midazolam ? ' + Midazolam ' + midazolam : '';
+  var texto =
+    'Fentanil ' + fentanil + midazolamTxt + ' + Propofol titulado IV.<br>' +
+    'Suplementação de O2 por catéter nasal a 3 L/min.<br>' +
+    'Monitorização de oximetria de pulso e PNI.';
   appendToSortable('sortable-sedacao', createCheckboxDiv(texto, 'sedacao'));
 }
 
@@ -969,11 +1328,7 @@ function showPopup() {
   var container  = document.getElementById('checkbox-list');
   container.innerHTML = '';
   if (checkboxes.length === 0) {
-    var p = document.createElement('p');
-    p.textContent = 'Nenhum item selecionado para editar.';
-    container.appendChild(p);
-    document.getElementById('popup').style.display = 'block';
-    document.getElementById('backdrop').classList.add('show');
+    _toggleEditOptsMode();
     return;
   }
   checkboxes.forEach(function (cb) {
@@ -1105,47 +1460,34 @@ function uncheckAll() {
   if (typeof _agendarLiveLaudo === 'function') _agendarLiveLaudo();
 }
 
-// ----------------------------------------------------------
-// SERIALIZAR DOM → objeto JS
-// ----------------------------------------------------------
+function reiniciarPagina() {
+  // Salva o estado atual como "último laudo" para recuperação caso acionado por engano
+  if (typeof salvarUltimoLaudo === 'function') salvarUltimoLaudo();
 
-var IDS_CONTROLE = new Set([
-  'polipos','diver-sortable','canal-sortable','sedacao-dinamico',
-  'alteracao-conc-sortable-conclusao','alteracoes-conc-sortable-conclusao'
-]);
+  // Remove itens criados dinamicamente via dropdowns
+  document.querySelectorAll('.item-dinamico').forEach(function (el) { el.remove(); });
 
-function serializarSecao(containerId, opts) {
-  opts = opts || {};
-  var container = document.getElementById(containerId);
-  if (!container) return [];
-  var itens = [];
-  container.querySelectorAll(':scope > .item').forEach(function (div) {
-    if (opts.semDinamicos && div.classList.contains('item-dinamico')) return;
-    if (div.getAttribute('data-sep') === '1') { itens.push({ separador: true }); return; }
-    if (div.getAttribute('data-ph')) return; // placeholder de drag — ignorar
-    var cb = div.querySelector('input[type="checkbox"]');
-    if (!cb || IDS_CONTROLE.has(cb.id) || IDS_CONTROLE.has(cb.name)) return;
-    var label = div.querySelector('label');
-    var nome  = label ? label.innerText.trim() : cb.name;
-    if (!nome) return;
-    var item = { nome: nome };
-    var idPadrao = nome + '-' + containerId;
-    if (cb.id && cb.id !== idPadrao) item.id = cb.id;
-    item.valor = cb.value;
-    itens.push(item);
+  // Desmarca todos os checkboxes
+  document.querySelectorAll('input[type="checkbox"]').forEach(function (cb) { cb.checked = false; });
+
+  // Reseta selects não-essenciais para a primeira opção
+  document.querySelectorAll('select:not([onchange*="applySize"]):not([onchange*="applyFont"])').forEach(function (sel) {
+    if (sel.options.length > 0) sel.selectedIndex = 0;
   });
-  return itens;
-}
 
-function serializarSelect(id) {
-  var sel = document.getElementById(id);
-  if (!sel) return [];
-  return Array.from(sel.options).map(function (opt) {
-    var obj   = { valor: opt.value, label: opt.text };
-    var extra = opt.getAttribute('data-extra');
-    if (extra !== null) obj.extra = extra;
-    return obj;
-  });
+  // Limpa a caixa de saída
+  var out = document.getElementById('output');
+  if (out) out.innerHTML = '';
+
+  // Sai do modo de edição de opções, se estiver ativo
+  document.body.classList.remove('mostrar-edit-opts', 'edit-opts-wiggling');
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  registrarSnapshot();
+  if (typeof _agendarLiveLaudo === 'function') _agendarLiveLaudo();
+
+  mostrarToast('🔄 Página reiniciada — use "↺ Último laudo" para recuperar.', '#1a3a5a', 3500);
 }
 
 // ----------------------------------------------------------
@@ -1263,6 +1605,90 @@ function copiarConteudo() {
 
 function copiarFormatado() {
   _copiarSaida(document.getElementById('output'), 11, '🖨️ Copiado em Arial 11!');
+}
+
+// ----------------------------------------------------------
+// ADMIN — Gerenciar Códigos de Acesso
+// ----------------------------------------------------------
+
+function abrirPopupAdmin() {
+  document.getElementById('admin-popup').style.display = 'block';
+  document.getElementById('backdrop').classList.add('show');
+  listarCodigosAdmin();
+}
+
+function fecharPopupAdmin() {
+  document.getElementById('admin-popup').style.display = 'none';
+  document.getElementById('backdrop').classList.remove('show');
+  document.getElementById('admin-codigo-novo').value = '';
+}
+
+async function listarCodigosAdmin() {
+  var container = document.getElementById('admin-lista-codigos');
+  if (!container) return;
+  container.innerHTML = '<p style="color:var(--ink3);font-size:13px;padding:8px;text-align:center;">Carregando...</p>';
+  try {
+    var snapshot = await _firestore.collection('codigos').orderBy('criadoEm', 'desc').get();
+    if (snapshot.empty) {
+      container.innerHTML = '<p style="color:var(--ink3);font-size:13px;padding:12px;text-align:center;">Nenhum código criado ainda.</p>';
+      return;
+    }
+    var html = '';
+    snapshot.forEach(function (doc) {
+      var data = doc.data();
+      var id = doc.id;
+      var usado = data.usado ? 'Sim' : 'Não';
+      var criadoEm = data.criadoEm
+        ? (data.criadoEm.toDate ? data.criadoEm.toDate().toLocaleString('pt-BR') : data.criadoEm)
+        : '-';
+      var usadoPor = data.usadoPor || '-';
+      var bg = data.usado ? 'rgba(200,70,70,.08)' : 'rgba(42,122,82,.08)';
+      var color = data.usado ? '#a04040' : '#1a6a42';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid var(--border2);background:' + bg + ';border-radius:4px;margin-bottom:4px;">' +
+        '<div><strong style="font-family:DM Mono,monospace;font-size:14px;color:' + color + ';">' + id + '</strong>' +
+        '<br><span style="font-size:11.5px;color:var(--ink3);">Criado: ' + criadoEm + '</span>' +
+        (data.usadoPor ? '<br><span style="font-size:11.5px;color:var(--ink3);">Usado por: ' + usadoPor + '</span>' : '') +
+        '</div>' +
+        '<span style="font-size:12px;font-weight:600;padding:3px 10px;border-radius:10px;background:' + (data.usado ? '#e8c4c4' : '#c4e8d4') + ';color:' + (data.usado ? '#7a3030' : '#1a5a32') + ';">' + (data.usado ? 'Usado' : 'Disponível') + '</span>' +
+        '</div>';
+    });
+    container.innerHTML = html;
+  } catch (e) {
+    console.error('[listarCodigosAdmin]', e);
+    container.innerHTML = '<p style="color:var(--danger);font-size:13px;padding:12px;text-align:center;">Erro ao carregar: ' + e.message + '</p>';
+  }
+}
+
+async function criarCodigoAdmin() {
+  var input = document.getElementById('admin-codigo-novo');
+  var codigo = input.value.trim().toUpperCase();
+  if (!codigo) {
+    mostrarToast('&#9888; Digite um código.', '#7a4000', 3000);
+    return;
+  }
+  try {
+    await _firestore.collection('codigos').doc(codigo).set({
+      criadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+      usado: false,
+      usadoPor: null,
+      usadoEm: null
+    });
+    mostrarToast('✅ Código "' + codigo + '" criado com sucesso!', '#1a3a1a', 4000);
+    input.value = '';
+    listarCodigosAdmin();
+  } catch (e) {
+    console.error('[criarCodigoAdmin]', e);
+    mostrarToast('&#10060; Erro ao criar código: ' + e.message, '#7a1a1a', 5000);
+  }
+}
+
+// Sobrescreve o fecharTodosPopups para incluir o admin-popup
+function fecharTodosPopups() {
+  document.getElementById('popup').style.display        = 'none';
+  document.getElementById('create-popup').style.display = 'none';
+  document.getElementById('admin-popup').style.display  = 'none';
+  document.getElementById('backdrop').classList.remove('show');
+  document.getElementById('checkbox-list').innerHTML    = '';
 }
 
 // ----------------------------------------------------------

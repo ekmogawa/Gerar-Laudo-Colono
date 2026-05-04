@@ -92,14 +92,12 @@
       box-shadow: var(--shadow);
     }
 
-    /* Toolbar fixa no topo quando lateral ativa */
+    /* Toolbar fixa no topo (sticky, abaixo do header) */
     body.lateral-on .toolbar {
       display: flex;
-      position: fixed;
-      top: 50px; /* abaixo do header */
-      left: 0;
-      right: 0;
-      z-index: 80; /* abaixo do header (200), acima da sidebar (90) */
+      position: sticky;
+      top: 50px;
+      z-index: 180;
       background: var(--panel);
       border-bottom: 1px solid var(--border);
       box-shadow: var(--shadow);
@@ -140,7 +138,7 @@
     }
     .sidebar button[disabled] { opacity: .45; cursor: not-allowed; }
 
-    /* Submenu flutuante "Salvar ▾" */
+    /* Submenu flutuante "Opções ▾" */
     .sb-submenu {
       display: none;
       position: fixed; left: 143px;
@@ -149,7 +147,7 @@
       border-radius: 8px;
       box-shadow: 0 8px 24px rgba(0,0,0,.18);
       min-width: 240px;
-      z-index: 95;
+      z-index: 500;
       padding: 6px;
     }
     .sb-submenu.show { display: block; }
@@ -176,9 +174,9 @@
       max-width: none;
       display: grid;
       grid-template-columns: 1460px minmax(380px, 1fr);
+      grid-template-rows: auto 1fr;
       gap: 16px;
       align-items: start;
-      padding-top: 60px; /* espaço para toolbar fixa */
     }
     /* Janelas mais estreitas: proporção 2/3 seções e 1/3 caixa */
     @media (max-width: 1900px) {
@@ -213,6 +211,17 @@
     /* Botões acima da caixa de texto invisíveis quando lateral on */
     body.lateral-on .output-bar { display: none; }
 
+    /* Barra inferior na caixa de texto — visível apenas quando lateral ativa */
+    .output-bottom-bar { display: none; }
+    body.lateral-on .output-bottom-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      background: var(--row-alt);
+      border-top: 1px solid var(--border);
+    }
+
     /* Botão "Sair" no header — aparência clara em fundo escuro */
     #user-status button {
       color: rgba(255,255,255,.92) !important;
@@ -225,15 +234,32 @@
     }
     body.lateral-on .wrap > .output-wrap {
       position: sticky;
-      top: 12px;
+      top: calc(50px + 42px + 12px);
       margin-top: 0;
       max-height: calc(100vh - 24px);
       display: flex;
       flex-direction: column;
+      grid-row: 1 / span 2;
+      overflow: hidden;
+    }
+    body.lateral-on .wrap > footer {
+      grid-column: 1 / 2;
+      grid-row: 2;
+      align-self: start;
+    }
+    body.lateral-on .wrap > .output-wrap .output-scroll {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      position: relative;
+    }
+    body.lateral-on .wrap > .output-wrap .text-toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 1;
     }
     body.lateral-on .wrap > .output-wrap #output {
-      flex: 1 1 auto;
-      overflow-y: auto;
+      min-height: 120px;
     }
     .tsep { width:1px; height:20px; background:var(--border2); margin:0 3px; }
 
@@ -512,6 +538,60 @@
     .popup select { font-size: 13.5px; padding: 5px 8px; margin-bottom: 2px; }
     .popup-footer { display: flex; gap: 7px; margin-top: 14px; flex-wrap: wrap; }
 
+    /* Botão ✎ ao lado dos selects (editor de opções) — escondido por padrão */
+    .btn-edit-opt {
+      display: none;
+      background: transparent; color: var(--ink3);
+      border: 1px solid var(--border2); border-radius: 4px;
+      padding: 1px 6px; font-size: 12px; line-height: 1.3;
+      margin-left: 2px; cursor: pointer;
+      transition: background var(--t), color var(--t), border-color var(--t);
+    }
+    .btn-edit-opt:hover { background: var(--accent-l); color: var(--primary); border-color: var(--accent); }
+    body.mostrar-edit-opts .btn-edit-opt { display: inline-block; }
+    body.modo-visitante .btn-edit-opt { display: none !important; }
+
+    @keyframes edit-opt-wiggle {
+      0%, 100% { transform: rotate(0deg); }
+      15% { transform: rotate(-14deg) scale(1.15); }
+      30% { transform: rotate(12deg)  scale(1.15); }
+      45% { transform: rotate(-9deg)  scale(1.1); }
+      60% { transform: rotate(7deg)   scale(1.05); }
+      75% { transform: rotate(-4deg); }
+    }
+    body.edit-opts-wiggling .btn-edit-opt {
+      animation: edit-opt-wiggle .7s ease both;
+      color: var(--primary);
+      border-color: var(--accent);
+      background: var(--accent-l);
+    }
+
+    /* Editor de opções de dropdown */
+    .opt-editor-row {
+      display: flex; gap: 6px; align-items: center;
+      padding: 5px 0; border-bottom: 1px solid var(--border2);
+    }
+    .opt-editor-row input {
+      font-family: 'DM Sans', sans-serif; font-size: 12.5px;
+      padding: 4px 7px; border: 1px solid var(--border2);
+      border-radius: 4px; background: var(--row-alt); color: var(--ink);
+    }
+    .opt-editor-row input:focus { outline: none; border-color: var(--accent); }
+    .opt-editor-row .opt-label-in { flex: 0 0 140px; }
+    .opt-editor-row .opt-valor-in { flex: 1 1 auto; min-width: 0; }
+    .opt-editor-row .opt-extra-in { flex: 0 0 200px; }
+    .opt-editor-row .opt-btn {
+      flex: 0 0 auto; padding: 2px 7px; font-size: 12px;
+      border: 1px solid var(--border2); background: var(--panel);
+      border-radius: 4px; cursor: pointer; color: var(--ink2);
+    }
+    .opt-editor-row .opt-btn:hover { background: var(--accent-l); }
+    .opt-editor-row .opt-btn-rm:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+    .opt-editor-legenda {
+      font-size: 11.5px; color: var(--ink3);
+      padding: 6px 0 10px;
+    }
+
     /* ── OUTPUT ── */
     .output-wrap {
       margin-top: 12px;
@@ -733,8 +813,8 @@
 
 <!-- TOOLBAR (legacy — visível só no mobile) -->
 <div class="toolbar">
-  <button class="btn-ghost" onclick="toggleCaixaLateral(); refrescarMenuSalvar()" title="Caixa de texto lateral"><span id="sb-state-lateral-mob" hidden></span>📐 Caixa Lateral</button>
   <button class="btn-save"  onclick="toggleMenuSalvar(event)">⚙ Opções ▾</button>
+  <button class="btn-ghost" onclick="toggleCaixaLateral(); refrescarMenuSalvar()" title="Caixa de texto lateral"><span id="sb-state-lateral-mob" hidden></span>📐 Caixa Lateral</button>
   <button class="btn-ghost" onclick="desfazer()" title="Desfazer (Ctrl+Z)">↶ Desfazer</button>
   <button class="btn-ghost" onclick="refazer()" title="Refazer (Ctrl+Y)">↷ Refazer</button>
   <button class="btn-ghost" onclick="recuperarUltimoLaudo()" title="Restaurar o estado do último laudo gerado nesta sessão">↺ Último laudo</button>
@@ -744,6 +824,7 @@
   <button class="btn-primary" onclick="copiarConteudo()" style="margin-left: auto;">📄 Copiar texto</button>
   <button class="btn-muted"   onclick="copiarFormatado()">🖨 Fonte 11</button>
   <button class="btn-ghost" onclick="uncheckAll()">✕ Limpar</button>
+  <button class="btn-ghost" onclick="reiniciarPagina()" title="Voltar ao estado inicial sem recarregar a página">🔄 Reiniciar</button>
 </div>
 
 <!-- Submenu flutuante "Opções ▾" -->
@@ -751,6 +832,7 @@
   <button onclick="salvarDados(); fecharMenuSalvar()">💾 Salvar agora</button>
   <button onclick="toggleAutoSave(); refrescarMenuSalvar()">🔄 Auto-save <span class="sb-toggle-state" id="sb-state-autosave">OFF</span></button>
   <button onclick="window.open('https://ekmogawa.github.io/Gerar-Laudo-Importador/?tipo=colono', '_blank', 'noopener'); fecharMenuSalvar()">📥 Importar laudos Word</button>
+  <button onclick="abrirPopupAdmin(); fecharMenuSalvar()" id="btn-admin-codigos" style="display:none">🔑 Código de Acesso</button>
 </div>
 
 <div id="toast"></div>
@@ -793,6 +875,40 @@
   </div>
 </div>
 
+<!-- POPUP EDITOR DE OPÇÕES DE DROPDOWN -->
+<div class="popup" id="popup-edit-options">
+  <h3 id="popup-edit-options-title">Editar opções</h3>
+  <div class="opt-editor-legenda">
+    <strong>Label</strong>: como aparece no dropdown (curto). <strong>Valor</strong>: texto inserido no laudo. <strong>Extra</strong>: variante usada na conclusão (quando aplicável).
+  </div>
+  <div id="popup-edit-options-body"></div>
+  <div class="popup-footer">
+    <button class="btn-primary" onclick="salvarOptionsEditadas()">💾 Salvar</button>
+    <button class="btn-muted"   onclick="restaurarOptionsPadrao()">↺ Restaurar padrão</button>
+    <button class="btn-ghost"   onclick="fecharTodosPopups()">Cancelar</button>
+  </div>
+</div>
+
+<!-- POPUP ADMIN — gerenciar códigos de acesso -->
+<div class="popup" id="admin-popup">
+  <h3>🔑 Gerenciar Códigos de Acesso</h3>
+  <p style="font-size:13px;color:var(--ink3);margin-bottom:14px;">
+    Crie códigos de acesso para convidar novos usuários. Cada código só pode ser usado uma vez.
+  </p>
+  <label for="admin-codigo-novo">Novo código</label>
+  <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;">
+    <input type="text" id="admin-codigo-novo" placeholder="Ex: CONVITE123" style="text-transform:uppercase;flex:1;">
+    <button class="btn-primary" onclick="criarCodigoAdmin()">🔑 Criar</button>
+  </div>
+  <label>Códigos existentes</label>
+  <div id="admin-lista-codigos" style="max-height:300px;overflow-y:auto;border:1px solid var(--border2);border-radius:6px;padding:8px;">
+    <p style="color:var(--ink3);font-size:13px;padding:8px;text-align:center;">Carregando...</p>
+  </div>
+  <div class="popup-footer" style="margin-top:12px;">
+    <button class="btn-ghost" onclick="fecharPopupAdmin()">Fechar</button>
+  </div>
+</div>
+
 <div class="wrap">
   <div class="main-col">
     <div class="sections-table">
@@ -817,15 +933,17 @@
     <div class="sec-row">
       <div class="sec-label">Sedação</div>
       <div class="sec-content" id="sedacao-sec">
-        <div id="sortable-sedacao" class="sortable-zone">
-          <!-- Item fixo de sedação dinâmica -->
-          <div class="item" style="border-radius:6px;cursor:default;width:fit-content;">
-            <span style="font-size:13px;color:var(--ink3);font-weight:500;">Fentanil</span>
-            <select id="fentanil"></select>
-            <span style="font-size:13px;color:var(--ink3);font-weight:500;">+ Midazolam</span>
-            <select id="midazolam"></select>
-            <span style="font-size:13px;color:var(--ink3);font-weight:500;">+ Propofol titulado</span>
-            <button class="btn-add" onclick="addParametersedacao()">＋</button>
+        <div id="sortable-sedacao" class="sortable-zone ui-sortable">
+          <!-- item fixo de sedação dinâmica -->
+          <div class="item ui-sortable-handle" style="cursor:default;border-radius:6px;width:fit-content;">
+            <div class="ctrl-row" style="border:none;padding:0;background:transparent;">
+              <span>Fentanil</span>
+              <select id="fentanil"></select>
+              <span>+ Midazolam</span>
+              <select id="midazolam"></select>
+              <span>+ Propofol titulado</span>
+              <button class="btn-add" onclick="addParametersedacao()">＋</button>
+            </div>
           </div>
         </div>
       </div>
@@ -855,17 +973,17 @@
           <select id="segmento" style="display:none;">
             <option value="1">1</option><option value="2">&gt;1</option>
           </select>
-          <span>Local:</span>      <select id="localizacao"></select>
-          <span>Paris:</span>      <select id="lesao"></select>
-          <span>Nº:</span>         <select id="numero"></select>
-          <span>Tam:</span>        <select id="tamanho"></select>
-          <span>a</span>           <select id="atetamanho"></select>
-          <span>Kudo:</span>       <select id="kudo"></select>
-          <span>Vasc:</span>       <select id="vasc"></select>
-          <span>JNET:</span>       <select id="jnet"></select>
-          <span>Ressecção:</span>  <select id="resseccao"></select>
-          <span>e</span>           <select id="resseccao3"></select>
-          <span>Hemostasia:</span> <select id="hemostasia"></select>
+          <span>Local:</span>      <select id="localizacao"></select><button class="btn-edit-opt" title="Editar opções" onclick="editarOptions('localizacao','Lesões · Local','lesoes','localizacao',false)">✎</button>
+          <span>Paris:</span>      <select id="lesao"></select><button class="btn-edit-opt" title="Editar opções" onclick="editarOptions('lesao','Lesões · Paris','lesoes','paris',true)">✎</button>
+          <span>Nº:</span>         <select id="numero"></select><button class="btn-edit-opt" title="Editar opções" onclick="editarOptions('numero','Lesões · Número','lesoes','numero',true)">✎</button>
+          <span>Tam:</span>        <select id="tamanho"></select><button class="btn-edit-opt" title="Editar opções" onclick="editarOptions('tamanho','Lesões · Tamanho','lesoes','tamanho',false)">✎</button>
+          <span>a</span>           <select id="atetamanho"></select><button class="btn-edit-opt" title="Editar opções" onclick="editarOptions('atetamanho','Lesões · Até tamanho','lesoes','ateTamanho',false)">✎</button>
+          <span>Kudo:</span>       <select id="kudo"></select><button class="btn-edit-opt" title="Editar opções" onclick="editarOptions('kudo','Lesões · Kudo','lesoes','kudo',true)">✎</button>
+          <span>Vasc:</span>       <select id="vasc"></select><button class="btn-edit-opt" title="Editar opções" onclick="editarOptions('vasc','Lesões · Vasc','lesoes','vasc',false)">✎</button>
+          <span>JNET:</span>       <select id="jnet"></select><button class="btn-edit-opt" title="Editar opções" onclick="editarOptions('jnet','Lesões · JNET','lesoes','jnet',false)">✎</button>
+          <span>Ressecção:</span>  <select id="resseccao"></select><button class="btn-edit-opt" title="Editar opções" onclick="editarOptions('resseccao','Lesões · Ressecção','lesoes','resseccao',true)">✎</button>
+          <span>e</span>           <select id="resseccao3"></select><button class="btn-edit-opt" title="Editar opções" onclick="editarOptions('resseccao3','Lesões · Ressecção (2ª)','lesoes','resseccao3',false)">✎</button>
+          <span>Hemostasia:</span> <select id="hemostasia"></select><button class="btn-edit-opt" title="Editar opções" onclick="editarOptions('hemostasia','Lesões · Hemostasia','lesoes','hemostasia',false)">✎</button>
           <button class="btn-add" onclick="addParameter()">＋ Adicionar</button>
         </div>
         <div id="sortable-alteracao" class="sortable-zone"></div>
@@ -881,9 +999,9 @@
             <option value="1">1</option><option value="2">&gt;1</option>
             <option value="3">div e lesão no mesmo segmento</option>
           </select>
-          <span>Local:</span>       <select id="diver-local"></select>
-          <span>e</span>            <select id="diver-local2"></select>
-          <span>Frequência:</span>  <select id="diver-freq"></select>
+          <span>Local:</span>       <select id="diver-local"></select><button class="btn-edit-opt" title="Editar opções" onclick="editarOptions('diver-local','Divertículos · Local','diverticulos','local',false)">✎</button>
+          <span>e</span>            <select id="diver-local2"></select><button class="btn-edit-opt" title="Editar opções" onclick="editarOptions('diver-local2','Divertículos · Segundo local','diverticulos','local2',false)">✎</button>
+          <span>Frequência:</span>  <select id="diver-freq"></select><button class="btn-edit-opt" title="Editar opções" onclick="editarOptions('diver-freq','Divertículos · Frequência','diverticulos','frequencia',true)">✎</button>
           <button class="btn-add" onclick="addParameterdiv()">＋ Adicionar</button>
         </div>
         <div id="sortable-diverticulo" class="sortable-zone"></div>
@@ -898,8 +1016,8 @@
           <select id="canal-segmento" style="display:none;">
             <option value="1">1</option><option value="2">&gt;1</option>
           </select>
-          <span>Alteração:</span> <select id="alt-anal"></select>
-          <span>Local:</span>     <select id="local-anal"></select>
+          <span>Alteração:</span> <select id="alt-anal"></select><button class="btn-edit-opt" title="Editar opções" onclick="editarOptions('alt-anal','Canal Anal · Alteração','canalAnal','alteracao',true)">✎</button>
+          <span>Local:</span>     <select id="local-anal"></select><button class="btn-edit-opt" title="Editar opções" onclick="editarOptions('local-anal','Canal Anal · Local','canalAnal','local',true)">✎</button>
           <button class="btn-add" onclick="addParametercanal()">＋ Adicionar</button>
         </div>
         <div id="sortable-canalanal" class="sortable-zone"></div>
@@ -914,16 +1032,16 @@
           <div class="sec-subrow">
             <span class="subrow-label">Simples</span>
             <label for="alteracao-conc-sortable-conclusao" style="display:none"></label>
-            <select id="numero-conc"></select>
-            <select id="lesao-conc"></select>
-            <select id="local-conc"></select>
-            <select id="resseccao-conc"></select>
+            <select id="numero-conc"></select><button class="btn-edit-opt" title="Editar opções" onclick="editarOptions('numero-conc','Conclusão Simples · Número','conclusaoSimples','numero',false)">✎</button>
+            <select id="lesao-conc"></select><button class="btn-edit-opt" title="Editar opções" onclick="editarOptions('lesao-conc','Conclusão Simples · Lesão','conclusaoSimples','lesao',false)">✎</button>
+            <select id="local-conc"></select><button class="btn-edit-opt" title="Editar opções" onclick="editarOptions('local-conc','Conclusão Simples · Local','conclusaoSimples','local',false)">✎</button>
+            <select id="resseccao-conc"></select><button class="btn-edit-opt" title="Editar opções" onclick="editarOptions('resseccao-conc','Conclusão Simples · Ressecção','conclusaoSimples','resseccao',false)">✎</button>
             <button class="btn-add" onclick="addConclusaoCheckbox()">＋</button>
           </div>
           <div class="sec-subrow">
             <span class="subrow-label">Composto</span>
             <label for="alteracoes-conc-sortable-conclusao" style="display:none"></label>
-            <select id="lesao2-conc"></select>
+            <select id="lesao2-conc"></select><button class="btn-edit-opt" title="Editar opções" onclick="editarOptions('lesao2-conc','Conclusão Composta · Lesão','conclusaoComposta','lesao',false)">✎</button>
             <span>Ceco:</span>    <select id="numeroceco-conc"></select>
             <span>Asc:</span>     <select id="numeroasc-conc"></select>
             <span>∠hep:</span>    <select id="numeroanghep-conc"></select>
@@ -932,7 +1050,7 @@
             <span>Desc:</span>    <select id="numerodesc-conc"></select>
             <span>Sig:</span>     <select id="numerosig-conc"></select>
             <span>Reto:</span>    <select id="numeroreto-conc"></select>
-            <span>Ressecção:</span> <select id="resseccao2-conc"></select>
+            <span>Ressecção:</span> <select id="resseccao2-conc"></select><button class="btn-edit-opt" title="Editar opções" onclick="editarOptions('resseccao2-conc','Conclusão Composta · Ressecção','conclusaoComposta','resseccao',false)">✎</button>
             <button class="btn-add" onclick="addConclusao2Checkbox()">＋</button>
             <button class="btn-add" onclick="gerarConclusoesCompostas()" title="Gerar a partir das lesões adicionadas (modo Múltiplos achados)">Auto</button>
           </div>
@@ -959,47 +1077,59 @@
     </div>
 
   </div><!-- /sections-table -->
-
-    <footer>Gerador de Laudo de Colonoscopia · 2026 · Eduardo K. M. Ogawa</footer>
   </div><!-- /main-col -->
 
   <!-- OUTPUT -->
-  <div class="output-wrap">
+    <div class="output-wrap">
     <div class="output-bar">
       <button class="btn-primary" onclick="copiarConteudo()">📄 Copiar texto</button>
       <button class="btn-muted"   onclick="copiarFormatado()">🖨 Fonte 11</button>
       <button class="btn-muted"   onclick="uncheckAll()">✕ Limpar</button>
     </div>
-    <div class="text-toolbar">
-      <select onchange="applyFont(this.value)">
-        <option value="Arial">Arial</option>
-        <option value="Times New Roman">Times</option>
-        <option value="'Courier New'">Courier</option>
-        <option value="Georgia">Georgia</option>
-      </select>
-      <select onchange="applySize(this.value)">
-        <option value="1">8pt</option>
-        <option value="2">10pt</option>
-        <option value="3">12pt</option>
-        <option value="4">14pt</option>
-        <option value="5">18pt</option>
-        <option value="6">24pt</option>
-      </select>
-      <button onclick="applyBold()" title="Negrito"><b>B</b></button>
-      <button onclick="applyItalic()" title="Itálico"><i>I</i></button>
-      <button onclick="applyUnderline()" title="Sublinhado"><u>U</u></button>
+    <div class="output-scroll">
+      <div class="text-toolbar">
+        <select onchange="applyFont(this.value)">
+          <option value="Arial">Arial</option>
+          <option value="Times New Roman">Times</option>
+          <option value="'Courier New'">Courier</option>
+          <option value="Georgia">Georgia</option>
+        </select>
+        <select onchange="applySize(this.value)">
+          <option value="1">8pt</option>
+          <option value="2">10pt</option>
+          <option value="3" selected>12pt</option>
+          <option value="4">14pt</option>
+          <option value="5">18pt</option>
+          <option value="6">24pt</option>
+        </select>
+        <button onclick="applyBold()" title="Negrito"><b>B</b></button>
+        <button onclick="applyItalic()" title="Itálico"><i>I</i></button>
+        <button onclick="applyUnderline()" title="Sublinhado"><u>U</u></button>
+      </div>
+      <div id="output" contenteditable="true"></div>
     </div>
-    <div id="output" contenteditable="true"></div>
+    <div class="output-bottom-bar">
+      <button class="btn-primary" onclick="copiarConteudo()">📄 Copiar texto</button>
+      <button class="btn-muted"   onclick="copiarFormatado()">🖨 Fonte 11</button>
+      <button class="btn-muted"   onclick="uncheckAll()">✕ Limpar</button>
+    </div>
   </div>
+
+  <footer>Gerador de Laudo de Colonoscopia · 2026 · Eduardo K. M. Ogawa</footer>
 </div><!-- /wrap -->
 
 <script>
 function fecharTodosPopups() {
-  document.getElementById('popup').style.display        = 'none';
-  document.getElementById('create-popup').style.display = 'none';
+  document.querySelectorAll('.popup').forEach(function (p) { p.style.display = 'none'; });
   document.getElementById('backdrop').classList.remove('show');
-  document.getElementById('checkbox-list').innerHTML    = '';
+  var lista = document.getElementById('checkbox-list');
+  if (lista) lista.innerHTML = '';
 }
+// Garante que o seletor de tamanho de fonte inicie em 12pt
+document.addEventListener('DOMContentLoaded', function() {
+  var sizeSelect = document.querySelector('select[onchange*="applySize"]');
+  if (sizeSelect) sizeSelect.value = '3';
+});
 </script>
 </body>
 </html>
